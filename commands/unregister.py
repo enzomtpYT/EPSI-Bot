@@ -7,6 +7,7 @@ from lib.user_manager import get_user, remove_user
     name="unregister",
     description="Supprimer votre enregistrement EPSI"
 )
+@app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
 async def unregister(interaction: discord.Interaction):
     logging.info(f"Commande /unregister exécutée par {interaction.user.name} (ID: {interaction.user.id})")
     

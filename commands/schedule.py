@@ -16,6 +16,7 @@ from lib.user_manager import get_user
     end_time="Date de fin au format JJ/MM/AAAA (optionnel)",
     image="Si activé, envoie l'emploi du temps sous forme d'image"
 )
+@app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
 @app_commands.user_install()
 async def schedule(
     interaction: discord.Interaction, 

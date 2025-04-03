@@ -8,6 +8,7 @@ from lib.user_manager import get_user, set_user
     description="Enregistrer votre nom d'utilisateur EPSI"
 )
 @app_commands.describe(username="Votre nom d'utilisateur EPSI")
+@app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
 async def register(interaction: discord.Interaction, username: str):
     logging.info(f"Commande /register exécutée par {interaction.user.name} (ID: {interaction.user.id})")
     logging.info(f"Nom d'utilisateur à enregistrer: {username}")
