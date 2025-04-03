@@ -6,9 +6,37 @@ import json
 from datetime import datetime
 from dotenv import load_dotenv
 import os
+from PIL import Image, ImageDraw, ImageFont
+import io
 
 # Load environment variables
 load_dotenv()
+
+# French date mapping
+FRENCH_DAYS = {
+    'Monday': 'Lundi',
+    'Tuesday': 'Mardi',
+    'Wednesday': 'Mercredi',
+    'Thursday': 'Jeudi',
+    'Friday': 'Vendredi',
+    'Saturday': 'Samedi',
+    'Sunday': 'Dimanche'
+}
+
+FRENCH_MONTHS = {
+    'January': 'Janvier',
+    'February': 'Février',
+    'March': 'Mars',
+    'April': 'Avril',
+    'May': 'Mai',
+    'June': 'Juin',
+    'July': 'Juillet',
+    'August': 'Août',
+    'September': 'Septembre',
+    'October': 'Octobre',
+    'November': 'Novembre',
+    'December': 'Décembre'
+}
 
 # Bot configuration
 intents = discord.Intents.default()
@@ -90,7 +118,8 @@ def create_schedule_embed(schedule):
     
     # Add each date's classes to the embed
     for date, classes in sorted(classes_by_date.items()):
-        date_str = datetime.strptime(date, "%Y-%m-%d").strftime("%A %d %B %Y")
+        date_obj = datetime.strptime(date, "%Y-%m-%d")
+        date_str = f"{FRENCH_DAYS[date_obj.strftime('%A')]} {date_obj.day} {FRENCH_MONTHS[date_obj.strftime('%B')]} {date_obj.year}"
         class_list = []
         
         for class_info in classes:
@@ -113,6 +142,116 @@ def create_schedule_embed(schedule):
     
     return embed
 
+def create_schedule_image(schedule):
+    # Create a new image with white background
+    padding = 20  # Padding between columns
+    
+    # Try to load a font, fallback to default if not available
+    try:
+        font = ImageFont.truetype("arial.ttf", 20)
+    except:
+        font = ImageFont.load_default()
+    
+    # Calculate optimal column width based on content
+    def get_text_width(text):
+        return int(draw.textlength(text, font=font))  # Convert to integer
+    
+    # Create a temporary image to measure text
+    temp_image = Image.new('RGB', (1, 1), 'white')
+    draw = ImageDraw.Draw(temp_image)
+    
+    # Calculate maximum width needed for a single column
+    max_width = 0
+    if schedule:
+        for class_info in schedule:
+            if not class_info.get('name'):
+                continue
+                
+            time_str = f"{class_info['start_time']} - {class_info['end_time']}"
+            room_str = f"Salle : {class_info['room']}" if class_info['room'] else "Aucune salle spécifiée"
+            teacher_str = f"Professeur : {class_info['teacher']}" if class_info['teacher'] else "Aucun professeur spécifié"
+            
+            # Measure each line
+            max_width = max(max_width, get_text_width(class_info['name']))
+            max_width = max(max_width, get_text_width(time_str))
+            max_width = max(max_width, get_text_width(room_str))
+            max_width = max(max_width, get_text_width(teacher_str))
+    
+    # Add padding and ensure minimum width
+    column_width = max(max_width + 40, 300)  # 40 for padding, 300 as minimum width
+    
+    # Calculate total width based on number of days
+    if schedule:
+        unique_dates = len(set(class_info['date'] for class_info in schedule))
+        total_width = int((column_width * unique_dates) + (padding * (unique_dates - 1)))  # Convert to integer
+    else:
+        total_width = column_width
+    
+    # Calculate maximum height needed for any column
+    max_height = 0
+    if schedule:
+        # Group classes by date
+        classes_by_date = {}
+        for class_info in schedule:
+            date = class_info['date']
+            if date not in classes_by_date:
+                classes_by_date[date] = []
+            classes_by_date[date].append(class_info)
+        
+        # Calculate height for each day's content
+        for date, classes in sorted(classes_by_date.items()):
+            current_height = 80  # Start with header space
+            for class_info in classes:
+                if not class_info.get('name'):
+                    continue
+                current_height += 100  # Space for class content
+                current_height += 10   # Space for separator
+            max_height = max(max_height, current_height)
+    
+    # Add padding to height and ensure minimum height
+    total_height = max(max_height + 40, 200)  # 40 for padding, 200 as minimum height
+    
+    # Create the actual image
+    image = Image.new('RGB', (total_width, total_height), 'white')
+    draw = ImageDraw.Draw(image)
+    
+    # Title (without emoji)
+    draw.text((10, 10), "Emploi du temps EPSI", font=font, fill='black')
+    
+    if not schedule:
+        draw.text((10, 50), "Aucun cours trouvé pour la période spécifiée.", font=font, fill='black')
+        return [image]
+    
+    # Draw each day's content in its own column
+    x_position = 10
+    for date, classes in sorted(classes_by_date.items()):
+        date_obj = datetime.strptime(date, "%Y-%m-%d")
+        date_str = f"{FRENCH_DAYS[date_obj.strftime('%A')]} {date_obj.day} {FRENCH_MONTHS[date_obj.strftime('%B')]} {date_obj.year}"
+        
+        # Draw date header
+        draw.text((x_position, 50), date_str, font=font, fill='blue')
+        
+        y_position = 80
+        for class_info in classes:
+            if not class_info.get('name'):
+                continue
+                
+            time_str = f"{class_info['start_time']} - {class_info['end_time']}"
+            room_str = f"Salle : {class_info['room']}" if class_info['room'] else "Aucune salle spécifiée"
+            teacher_str = f"Professeur : {class_info['teacher']}" if class_info['teacher'] else "Aucun professeur spécifié"
+            
+            class_str = f"{class_info['name']}\n{time_str}\n{room_str}\n{teacher_str}"
+            draw.text((x_position + 10, y_position), class_str, font=font, fill='black')
+            y_position += 100
+            
+            # Add a line separator
+            draw.line([(x_position, y_position), (x_position + column_width - 20, y_position)], fill='gray')
+            y_position += 10
+        
+        x_position += column_width + padding
+    
+    return [image]
+
 @bot.event
 async def on_ready():
     print(f'Bot prêt ! Connecté en tant que {bot.user.name} ({bot.user.id})')
@@ -130,14 +269,16 @@ async def on_ready():
 @app_commands.describe(
     username="Nom d'utilisateur EPSI (optionnel si vous êtes enregistré)",
     start_time="Date de début au format JJ/MM/AAAA (optionnel)",
-    end_time="Date de fin au format JJ/MM/AAAA (optionnel)"
+    end_time="Date de fin au format JJ/MM/AAAA (optionnel)",
+    image="Si activé, envoie l'emploi du temps sous forme d'image"
 )
 @app_commands.user_install()
 async def schedule(
     interaction: discord.Interaction, 
     username: str = None, 
     start_time: str = None, 
-    end_time: str = None
+    end_time: str = None,
+    image: bool = False
 ):
     await interaction.response.defer()
 
@@ -149,9 +290,26 @@ async def schedule(
         username = users[str(interaction.user.id)]
     
     schedule_data = await fetch_schedule(username, start_time, end_time)
-    embed = create_schedule_embed(schedule_data)
     
-    await interaction.followup.send(embed=embed, ephemeral=True)
+    if image:
+        # Generate and send images
+        images = create_schedule_image(schedule_data)
+        files = []
+        for i, img in enumerate(images):
+            # Convert PIL image to bytes
+            img_byte_arr = io.BytesIO()
+            img.save(img_byte_arr, format='PNG')
+            img_byte_arr.seek(0)
+            
+            # Create discord file
+            file = discord.File(img_byte_arr, filename=f'schedule_page_{i+1}.png')
+            files.append(file)
+        
+        await interaction.followup.send(files=files, ephemeral=True)
+    else:
+        # Send embed as before
+        embed = create_schedule_embed(schedule_data)
+        await interaction.followup.send(embed=embed, ephemeral=True)
 
 @bot.tree.command(
     name="register",
