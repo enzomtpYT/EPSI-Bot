@@ -1,8 +1,10 @@
 import aiohttp
+import os
 
 async def fetch_schedule(user, start_time=None, end_time=None):
     print(f"Fetching schedule for user {user}")
-    url = f"https://epsi.enzomtp.party/?user={user}"
+    base_url = os.getenv('API_URL', 'https://epsi.enzomtp.party')
+    url = f"{base_url}/?user={user}"
     if start_time and end_time:
         url += f"&begin={start_time}&end={end_time}"
     async with aiohttp.ClientSession() as session:
