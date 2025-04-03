@@ -4,12 +4,17 @@ from datetime import datetime
 
 # Global users dictionary
 users = {}
+USERS_FILE = './data/users.json'
+
+def ensure_data_directory():
+    os.makedirs(os.path.dirname(USERS_FILE), exist_ok=True)
 
 def load_users():
     global users
     try:
-        if os.path.exists('users.json'):
-            with open('users.json', 'r', encoding='utf-8') as f:
+        ensure_data_directory()
+        if os.path.exists(USERS_FILE):
+            with open(USERS_FILE, 'r', encoding='utf-8') as f:
                 loaded_users = json.load(f)
                 # Validate that loaded_users is a dictionary
                 if isinstance(loaded_users, dict):
@@ -25,9 +30,9 @@ def load_users():
         print("Error: users.json is corrupted. Starting with empty users dictionary.")
         users = {}
         # Backup the corrupted file
-        if os.path.exists('users.json'):
+        if os.path.exists(USERS_FILE):
             backup_name = f'users_backup_{int(datetime.now().timestamp())}.json'
-            os.rename('users.json', backup_name)
+            os.rename(USERS_FILE, backup_name)
         save_users()
     except Exception as e:
         print(f"Unexpected error loading users: {e}")
@@ -35,7 +40,8 @@ def load_users():
         save_users()
 
 def save_users():
-    with open('users.json', 'w', encoding='utf-8') as f:
+    ensure_data_directory()
+    with open(USERS_FILE, 'w', encoding='utf-8') as f:
         json.dump(users, f, indent=4)
 
 def get_user(user_id):
