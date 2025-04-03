@@ -1,4 +1,15 @@
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment variables
 .env
 venv/
-users.json
+
+# Logs
+*.log
 bot.log
+
+# User data
+users.json
