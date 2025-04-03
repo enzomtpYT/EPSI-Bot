@@ -31,7 +31,7 @@ def load_users():
         users = {}
         # Backup the corrupted file
         if os.path.exists(USERS_FILE):
-            backup_name = f'users_backup_{int(datetime.now().timestamp())}.json'
+            backup_name = os.path.join(os.path.dirname(USERS_FILE), f'users_backup_{int(datetime.now().timestamp())}.json')
             os.rename(USERS_FILE, backup_name)
         save_users()
     except Exception as e:
