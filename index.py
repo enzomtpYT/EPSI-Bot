@@ -154,7 +154,7 @@ def create_schedule_embed(schedule):
     return embed
 
 def create_schedule_image(schedule):
-    # Create a new image with white background
+    # Create a new image with dark background
     padding = 20  # Padding between columns
     
     # Try to load a font, fallback to default if not available
@@ -168,7 +168,7 @@ def create_schedule_image(schedule):
         return int(draw.textlength(text, font=font))  # Convert to integer
     
     # Create a temporary image to measure text
-    temp_image = Image.new('RGB', (1, 1), 'white')
+    temp_image = Image.new('RGB', (1, 1), '#1a1a1a')  # Dark background
     draw = ImageDraw.Draw(temp_image)
     
     # Calculate maximum width needed for a single column
@@ -222,15 +222,15 @@ def create_schedule_image(schedule):
     # Add padding to height and ensure minimum height
     total_height = max(max_height + 40, 200)  # 40 for padding, 200 as minimum height
     
-    # Create the actual image
-    image = Image.new('RGB', (total_width, total_height), 'white')
+    # Create the actual image with dark background
+    image = Image.new('RGB', (total_width, total_height), '#1a1a1a')  # Dark background
     draw = ImageDraw.Draw(image)
     
     # Title (without emoji)
-    draw.text((10, 10), "Emploi du temps EPSI", font=font, fill='black')
+    draw.text((10, 10), "Emploi du temps EPSI", font=font, fill='#ffffff')  # White text
     
     if not schedule:
-        draw.text((10, 50), "Aucun cours trouvé pour la période spécifiée.", font=font, fill='black')
+        draw.text((10, 50), "Aucun cours trouvé pour la période spécifiée.", font=font, fill='#ffffff')  # White text
         return [image]
     
     # Draw each day's content in its own column
@@ -240,7 +240,7 @@ def create_schedule_image(schedule):
         date_str = f"{FRENCH_DAYS[date_obj.strftime('%A')]} {date_obj.day} {FRENCH_MONTHS[date_obj.strftime('%B')]} {date_obj.year}"
         
         # Draw date header
-        draw.text((x_position, 50), date_str, font=font, fill='blue')
+        draw.text((x_position, 50), date_str, font=font, fill='#4a9eff')  # Light blue text
         
         y_position = 80
         for class_info in classes:
@@ -252,11 +252,11 @@ def create_schedule_image(schedule):
             teacher_str = f"Professeur : {class_info['teacher']}" if class_info['teacher'] else "Aucun professeur spécifié"
             
             class_str = f"{class_info['name']}\n{time_str}\n{room_str}\n{teacher_str}"
-            draw.text((x_position + 10, y_position), class_str, font=font, fill='black')
+            draw.text((x_position + 10, y_position), class_str, font=font, fill='#ffffff')  # White text
             y_position += 100
             
             # Add a line separator
-            draw.line([(x_position, y_position), (x_position + column_width - 20, y_position)], fill='gray')
+            draw.line([(x_position, y_position), (x_position + column_width - 20, y_position)], fill='#333333')  # Dark gray separator
             y_position += 10
         
         x_position += column_width + padding
