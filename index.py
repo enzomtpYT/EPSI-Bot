@@ -8,6 +8,17 @@ from dotenv import load_dotenv
 import os
 from PIL import Image, ImageDraw, ImageFont
 import io
+import logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('bot.log', encoding='utf-8'),
+        logging.StreamHandler()
+    ]
+)
 
 # Load environment variables
 load_dotenv()
@@ -254,13 +265,13 @@ def create_schedule_image(schedule):
 
 @bot.event
 async def on_ready():
-    print(f'Bot prêt ! Connecté en tant que {bot.user.name} ({bot.user.id})')
-    print(f'Utilisateurs enregistrés : {len(users)}')
+    logging.info(f'Bot prêt ! Connecté en tant que {bot.user.name} ({bot.user.id})')
+    logging.info(f'Utilisateurs enregistrés : {len(users)}')
     try:
         synced = await bot.tree.sync()
-        print(f"Synchronisation de {len(synced)} commande(s)")
+        logging.info(f"Synchronisation de {len(synced)} commande(s)")
     except Exception as e:
-        print(f"Échec de la synchronisation des commandes : {e}")
+        logging.error(f"Échec de la synchronisation des commandes : {e}")
 
 @bot.tree.command(
     name="edt",
@@ -280,16 +291,22 @@ async def schedule(
     end_time: str = None,
     image: bool = False
 ):
+    logging.info(f"Commande /edt exécutée par {interaction.user.name} (ID: {interaction.user.id})")
+    logging.info(f"Paramètres: username={username}, start_time={start_time}, end_time={end_time}, image={image}")
+    
     await interaction.response.defer()
 
     # If no username provided, check if user is registered
     if username is None:
         if not str(interaction.user.id) in users:
+            logging.warning(f"Utilisateur {interaction.user.name} (ID: {interaction.user.id}) non enregistré")
             await interaction.followup.send("Merci d'enregistrer votre nom d'utilisateur avec la commande `/register` ou de spécifier un nom d'utilisateur directement.", ephemeral=True)
             return
         username = users[str(interaction.user.id)]
+        logging.info(f"Utilisation du nom d'utilisateur enregistré: {username}")
     
     schedule_data = await fetch_schedule(username, start_time, end_time)
+    logging.info(f"Nombre de cours trouvés: {len(schedule_data)}")
     
     if image:
         # Generate and send images
@@ -306,10 +323,12 @@ async def schedule(
             files.append(file)
         
         await interaction.followup.send(files=files, ephemeral=True)
+        logging.info(f"Image(s) envoyée(s) à {interaction.user.name}")
     else:
         # Send embed as before
         embed = create_schedule_embed(schedule_data)
         await interaction.followup.send(embed=embed, ephemeral=True)
+        logging.info(f"Embed envoyé à {interaction.user.name}")
 
 @bot.tree.command(
     name="register",
@@ -317,10 +336,14 @@ async def schedule(
 )
 @app_commands.describe(username="Votre nom d'utilisateur EPSI")
 async def register(interaction: discord.Interaction, username: str):
+    logging.info(f"Commande /register exécutée par {interaction.user.name} (ID: {interaction.user.id})")
+    logging.info(f"Nom d'utilisateur à enregistrer: {username}")
+    
     await interaction.response.defer(ephemeral=True)
     
     # Check if user is already registered
     if str(interaction.user.id) in users:
+        logging.warning(f"Tentative de réenregistrement par {interaction.user.name} (ID: {interaction.user.id})")
         await interaction.followup.send("Vous êtes déjà enregistré. Pour changer votre nom d'utilisateur, utilisez la commande `/unregister` d'abord.", ephemeral=True)
         return
     
@@ -331,6 +354,7 @@ async def register(interaction: discord.Interaction, username: str):
     save_users()
     
     await interaction.followup.send(f"Votre nom d'utilisateur a été enregistré avec succès : {username}", ephemeral=True)
+    logging.info(f"Utilisateur {interaction.user.name} (ID: {interaction.user.id}) enregistré avec le nom d'utilisateur: {username}")
 
 # Get the token from environment variables
 bot.run(os.getenv('DISCORD_TOKEN'))
