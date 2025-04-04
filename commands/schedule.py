@@ -39,27 +39,36 @@ async def schedule(
             return
         logging.info(f"Utilisation du nom d'utilisateur enregistré: {username}")
     
-    schedule_data = await fetch_schedule(username, start_time, end_time)
-    logging.info(f"Nombre de cours trouvés: {len(schedule_data)}")
-    
-    if image:
-        # Generate and send images
-        images = create_schedule_image(schedule_data)
-        files = []
-        for i, img in enumerate(images):
-            # Convert PIL image to bytes
-            img_byte_arr = io.BytesIO()
-            img.save(img_byte_arr, format='PNG')
-            img_byte_arr.seek(0)
-            
-            # Create discord file
-            file = discord.File(img_byte_arr, filename=f'schedule_page_{i+1}.png')
-            files.append(file)
+    try:
+        schedule_data = await fetch_schedule(username, start_time, end_time)
+        logging.info(f"Nombre de cours trouvés: {len(schedule_data)}")
         
-        await interaction.followup.send(files=files, ephemeral=True)
-        logging.info(f"Image(s) envoyée(s) à {interaction.user.name}")
-    else:
-        # Send embed as before
-        embed = create_schedule_embed(schedule_data)
-        await interaction.followup.send(embed=embed, ephemeral=True)
-        logging.info(f"Embed envoyé à {interaction.user.name}") 
+        if not schedule_data:
+            await interaction.followup.send("Aucun cours trouvé pour la période spécifiée.", ephemeral=True)
+            return
+            
+        if image:
+            # Generate and send images
+            images = create_schedule_image(schedule_data)
+            files = []
+            for i, img in enumerate(images):
+                # Convert PIL image to bytes
+                img_byte_arr = io.BytesIO()
+                img.save(img_byte_arr, format='PNG')
+                img_byte_arr.seek(0)
+                
+                # Create discord file
+                file = discord.File(img_byte_arr, filename=f'schedule_page_{i+1}.png')
+                files.append(file)
+            
+            await interaction.followup.send(files=files, ephemeral=True)
+            logging.info(f"Image(s) envoyée(s) à {interaction.user.name}")
+        else:
+            # Send embed as before
+            embed = create_schedule_embed(schedule_data)
+            await interaction.followup.send(embed=embed, ephemeral=True)
+            logging.info(f"Embed envoyé à {interaction.user.name}")
+    except Exception as e:
+        error_message = "Une erreur est survenue lors de la récupération de l'emploi du temps. Veuillez réessayer plus tard."
+        logging.error(f"Erreur lors de la récupération de l'emploi du temps: {str(e)}")
+        await interaction.followup.send(error_message, ephemeral=True) 
