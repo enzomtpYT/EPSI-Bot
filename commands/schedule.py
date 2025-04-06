@@ -5,6 +5,7 @@ import io
 from lib.api import fetch_schedule
 from lib.schedule_utils import create_schedule_embed, create_schedule_image
 from lib.user_manager import get_user
+from datetime import datetime, timedelta
 
 @discord.app_commands.command(
     name="edt",
@@ -38,6 +39,21 @@ async def schedule(
             await interaction.followup.send("Merci d'enregistrer votre nom d'utilisateur avec la commande `/register` ou de spécifier un nom d'utilisateur directement.", ephemeral=True)
             return
         logging.info(f"Utilisation du nom d'utilisateur enregistré: {username}")
+    
+    # If start_time is provided but end_time is not, set end_time to a week later
+    if start_time and not end_time:
+        try:
+            # Parse the start_time string to a datetime object
+            start_date = datetime.strptime(start_time, "%d/%m/%Y")
+            # Add 7 days to get the end date
+            end_date = start_date + timedelta(days=7)
+            # Format the end date back to string
+            end_time = end_date.strftime("%d/%m/%Y")
+            logging.info(f"Date de fin automatiquement définie à une semaine après la date de début: {end_time}")
+        except ValueError:
+            logging.error(f"Format de date invalide: {start_time}")
+            await interaction.followup.send("Format de date invalide. Veuillez utiliser le format JJ/MM/AAAA.", ephemeral=True)
+            return
     
     try:
         schedule_data = await fetch_schedule(username, start_time, end_time)

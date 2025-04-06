@@ -78,11 +78,13 @@ def create_schedule_image(schedule):
     # Create a new image with dark background
     padding = 20  # Padding between columns
     
-    # Try to load a font, fallback to default if not available
-    try:
-        font = ImageFont.truetype("arial.ttf", 20)
-    except:
-        font = ImageFont.load_default()
+    text_size = 14
+    date_text_size = 18
+    class_text_size = 16
+
+    # Load fonts
+    font = ImageFont.truetype("Assets/Helvetica.ttf", text_size)
+    date_font = ImageFont.truetype("Assets/Helvetica-Bold.ttf", date_text_size)  # Larger and bold font for dates
     
     # Calculate optimal column width based on content
     def get_text_width(text):
@@ -132,11 +134,11 @@ def create_schedule_image(schedule):
         
         # Calculate height for each day's content
         for date, classes in sorted(classes_by_date.items()):
-            current_height = 80  # Start with header space
+            current_height = 10  # Start with header space
             for class_info in classes:
                 if not class_info.get('name'):
                     continue
-                current_height += 100  # Space for class content
+                current_height += 60  # Space for class content
                 current_height += 10   # Space for separator
             max_height = max(max_height, current_height)
     
@@ -147,11 +149,8 @@ def create_schedule_image(schedule):
     image = Image.new('RGB', (total_width, total_height), '#1a1a1a')  # Dark background
     draw = ImageDraw.Draw(image)
     
-    # Title (without emoji)
-    draw.text((10, 10), "Emploi du temps EPSI", font=font, fill='#ffffff')  # White text
-    
     if not schedule:
-        draw.text((10, 50), "Aucun cours trouvé pour la période spécifiée.", font=font, fill='#ffffff')  # White text
+        draw.text((10, 10), "Aucun cours trouvé pour la période spécifiée.", font=font, fill='#ffffff')  # White text
         return [image]
     
     # Draw each day's content in its own column
@@ -160,10 +159,13 @@ def create_schedule_image(schedule):
         date_obj = datetime.strptime(date, "%Y-%m-%d")
         date_str = f"{FRENCH_DAYS[date_obj.strftime('%A')]} {date_obj.day} {FRENCH_MONTHS[date_obj.strftime('%B')]} {date_obj.year}"
         
+        y_position = 10
+
         # Draw date header
-        draw.text((x_position, 50), date_str, font=font, fill='#4a9eff')  # Light blue text
-        
-        y_position = 80
+        bbox = draw.textbbox((0, 0), date_str, font=date_font)  # Light blue text with larger bold font
+        draw.text((x_position-10+column_width/2 - (bbox[2] - bbox[0])/2, 10), date_str, font=date_font, fill='#4a9eff')  # Light blue text with larger bold font
+        y_position += date_text_size + 10
+
         for class_info in classes:
             if not class_info.get('name'):
                 continue
@@ -173,8 +175,8 @@ def create_schedule_image(schedule):
             teacher_str = f"Professeur : {class_info['teacher']}" if class_info['teacher'] else "Aucun professeur spécifié"
             
             class_str = f"{class_info['name']}\n{time_str}\n{room_str}\n{teacher_str}"
-            draw.text((x_position + 10, y_position), class_str, font=font, fill='#ffffff')  # White text
-            y_position += 100
+            draw.text((x_position, y_position), class_str, font=font, fill='#ffffff')  # White text
+            y_position += 70
             
             # Add a line separator
             draw.line([(x_position, y_position), (x_position + column_width - 20, y_position)], fill='#333333')  # Dark gray separator
