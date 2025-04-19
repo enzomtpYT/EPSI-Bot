@@ -6,20 +6,28 @@ Un bot Discord pour accéder facilement à votre emploi du temps EPSI directemen
 
 ## Fonctionnalités
 
-- 📅 Afficher votre emploi du temps EPSI
+- 📅 Afficher votre emploi du temps EPSI pour une journée spécifique
+- 📆 Afficher votre emploi du temps EPSI pour une semaine complète
 - 🔄 Enregistrement de votre nom d'utilisateur EPSI
 - 🖼️ Option pour afficher l'emploi du temps sous forme d'image
-- 📅 Filtrage par date (début et fin)
+- 📅 Filtrage par date
 
 ## Commandes
 
-### `/edt` - Afficher l'emploi du temps
-Affiche votre emploi du temps EPSI.
+### `/day` - Afficher l'emploi du temps d'une journée
+Affiche votre emploi du temps EPSI pour une journée spécifique.
 
 **Options :**
 - `username` : Votre nom d'utilisateur EPSI (optionnel si vous êtes enregistré)
-- `start_time` : Date de début au format JJ/MM/AAAA (optionnel)
-- `end_time` : Date de fin au format JJ/MM/AAAA (optionnel)
+- `date` : Date au format JJ/MM/AAAA (optionnel, utilise la date du jour par défaut)
+- `image` : Si activé, envoie l'emploi du temps sous forme d'image
+
+### `/week` - Afficher l'emploi du temps d'une semaine
+Affiche votre emploi du temps EPSI pour une semaine complète.
+
+**Options :**
+- `username` : Votre nom d'utilisateur EPSI (optionnel si vous êtes enregistré)
+- `date` : Date au format JJ/MM/AAAA (optionnel, utilise la date du jour pour trouver la semaine actuelle)
 - `image` : Si activé, envoie l'emploi du temps sous forme d'image
 
 ### `/register` - S'enregistrer
@@ -40,7 +48,7 @@ Supprime votre enregistrement EPSI.
 
 ## Configuration
 
-Pour utiliser le bot, vous devez d'abord vous enregistrer avec la commande `/register` en spécifiant votre nom d'utilisateur EPSI. Une fois enregistré, vous pourrez utiliser la commande `/edt` sans avoir à spécifier votre nom d'utilisateur à chaque fois.
+Pour utiliser le bot, vous devez d'abord vous enregistrer avec la commande `/register` en spécifiant votre nom d'utilisateur EPSI. Une fois enregistré, vous pourrez utiliser les commandes `/day` et `/week` sans avoir à spécifier votre nom d'utilisateur à chaque fois.
 
 ## Support
 
@@ -53,4 +61,4 @@ Ce bot est développé avec :
 - discord.py
 - Autres dépendances listées dans `requirements.txt`
 
-Pour contribuer au développement, n'hésitez pas à ouvrir une issue ou à proposer une pull request. 
+Pour contribuer au développement, n'hésitez pas à ouvrir une issue ou à proposer une pull request.

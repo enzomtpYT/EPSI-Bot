@@ -4,7 +4,7 @@ import logging
 from dotenv import load_dotenv
 import os
 from lib.user_manager import load_users
-from commands import schedule, register, unregister
+from commands import day, week, register, unregister
 
 # Configure logging
 logging.basicConfig(
@@ -37,7 +37,8 @@ async def on_ready():
 load_users()
 
 # Add commands to the bot
-bot.tree.add_command(schedule.schedule)
+bot.tree.add_command(day.day)
+bot.tree.add_command(week.week)
 bot.tree.add_command(register.register)
 bot.tree.add_command(unregister.unregister)
 
