@@ -1,9 +1,7 @@
 import discord
 from datetime import datetime
 from PIL import Image, ImageDraw, ImageFont
-import io
 import random
-import logging
 
 
 FRENCH_DAYS = {
@@ -86,6 +84,21 @@ def text_color_for_bg(bg_color):
     return (0, 0, 0) if lum > 0.6 else (255, 255, 255)
 
 
+def draw_rounded_rectangle(draw, coordinates, radius, fill=None, outline=None):
+    """Draw a rectangle with rounded corners."""
+    x0, y0, x1, y1 = coordinates
+    
+    # Draw the main rectangles (body of the rounded rectangle)
+    draw.rectangle([x0 + radius, y0, x1 - radius, y1], fill=fill, outline=outline)
+    draw.rectangle([x0, y0 + radius, x1, y1 - radius], fill=fill, outline=outline)
+    
+    # Draw the four corner circles
+    draw.ellipse([x0, y0, x0 + 2 * radius, y0 + 2 * radius], fill=fill, outline=outline)  # Top-left
+    draw.ellipse([x1 - 2 * radius, y0, x1, y0 + 2 * radius], fill=fill, outline=outline)  # Top-right
+    draw.ellipse([x0, y1 - 2 * radius, x0 + 2 * radius, y1], fill=fill, outline=outline)  # Bottom-left
+    draw.ellipse([x1 - 2 * radius, y1 - 2 * radius, x1, y1], fill=fill, outline=outline)  # Bottom-right
+
+
 def create_schedule_image(schedule):
     padding = 20
     text_size = 14
@@ -130,10 +143,8 @@ def create_schedule_image(schedule):
             h += int(block_h)
             h += 40  
         max_height = max(max_height, h)
-        logging.info("Max Height :"+str(max_height))
 
     total_height = max(max_height + 40, 400)
-    logging.info("Total Height :"+str(total_height))
     image = Image.new('RGB', (total_width, total_height), "#1a1a1a")
     draw = ImageDraw.Draw(image)
 
@@ -188,14 +199,14 @@ def create_schedule_image(schedule):
             txt_color = text_color_for_bg(bg)
 
             block_h = max(text_h + pad_y * 2, int(size))
-            logging.info("Block Height :"+str(block_h))
 
             rect_x0 = x_position
             rect_y0 = y_position
             rect_x1 = x_position + column_width - 20
             rect_y1 = y_position + block_h
 
-            draw.rectangle([(rect_x0, rect_y0), (rect_x1, rect_y1)], fill=bg)
+            # Draw rounded rectangle with 8px radius
+            draw_rounded_rectangle(draw, (rect_x0, rect_y0, rect_x1, rect_y1), radius=8, fill=bg)
             draw.multiline_text((x_position + pad_x, y_position + pad_y), class_str, font=font, fill=txt_color)
 
             previous_end_time = et

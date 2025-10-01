@@ -22,7 +22,7 @@ async def day(
     interaction: discord.Interaction, 
     username: str = None, 
     date: str = None,
-    image: bool = False
+    image: bool = True
 ):
     logging.info(f"Commande /day exécutée par {interaction.user.name} (ID: {interaction.user.id})")
     logging.info(f"Paramètres: username={username}, date={date}, image={image}")
