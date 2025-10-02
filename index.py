@@ -4,7 +4,7 @@ import logging
 from dotenv import load_dotenv
 import os
 from lib.user_manager import load_users
-from commands import day, week, register, unregister
+from commands import day, week, settings
 
 # Configure logging
 logging.basicConfig(
@@ -39,8 +39,7 @@ load_users()
 # Add commands to the bot
 bot.tree.add_command(day.day)
 bot.tree.add_command(week.week)
-bot.tree.add_command(register.register)
-bot.tree.add_command(unregister.unregister)
+bot.tree.add_command(settings.settings)
 
 # Get the token from environment variables
 bot.run(os.getenv('DISCORD_TOKEN'))

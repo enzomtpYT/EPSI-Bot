@@ -45,11 +45,27 @@ def save_users():
         json.dump(users, f, indent=4)
 
 def get_user(user_id):
-    return users.get(str(user_id))
+    return users.get(str(user_id), {}).get("username")
 
 def set_user(user_id, username):
-    users[str(user_id)] = username
+    if str(user_id) not in users:
+        users[str(user_id)] = {"username": username, "daily": False, "weekly": False}
+    else:
+        users[str(user_id)]["username"] = username
     save_users()
+
+def set_user_preference(user_id, preference, value):
+    if str(user_id) in users:
+        if preference in ["daily", "weekly"]:
+            users[str(user_id)][preference] = value
+            save_users()
+            return True
+    return False
+
+def get_user_preference(user_id, preference):
+    if str(user_id) in users:
+        return users[str(user_id)].get(preference, False)
+    return False
 
 def remove_user(user_id):
     if str(user_id) in users:
