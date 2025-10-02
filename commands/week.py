@@ -3,7 +3,7 @@ from discord import app_commands
 import logging
 import io
 from lib.api import fetch_week_schedule
-from lib.schedule_utils import create_schedule_embed, create_schedule_image
+from lib.schedule_utils import create_schedule_embed, week_schedule_image
 from lib.user_manager import get_user
 from datetime import datetime
 
@@ -56,18 +56,16 @@ async def week(
             return
             
         if image:
-            # Generate and send images
-            images = create_schedule_image(schedule_data)
-            files = []
-            for i, img in enumerate(images):
-                # Convert PIL image to bytes
-                img_byte_arr = io.BytesIO()
-                img.save(img_byte_arr, format='PNG')
-                img_byte_arr.seek(0)
-                
-                # Create discord file
-                file = discord.File(img_byte_arr, filename=f'schedule_week_{i+1}.png')
-                files.append(file)
+            success, result = week_schedule_image(schedule_data)
+            if not success:
+                logging.error(f"Erreur lors de la génération de l'image: {result}")
+                await interaction.followup.send("Une erreur est survenue lors de la génération de l'image de l'emploi du temps.", ephemeral=True)
+                return
+            
+            image_bytes = io.BytesIO(result)
+            image_bytes.seek(0)
+            file = discord.File(fp=image_bytes, filename="week_schedule.png")
+            files = [file]
             
             await interaction.followup.send(files=files, ephemeral=True)
             logging.info(f"Image(s) envoyée(s) à {interaction.user.name}")
