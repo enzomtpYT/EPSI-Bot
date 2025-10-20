@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 import os
 from lib.user_manager import load_users
 from commands import day, week, settings
+from lib import notifier
 
 # Configure logging
 logging.basicConfig(
@@ -33,13 +34,19 @@ async def on_ready():
     except Exception as e:
         logging.error(f"Échec de la synchronisation des commandes : {e}")
 
+    # Start background notifier task
+    try:
+        bot.loop.create_task(notifier.notifier_loop(bot))
+        logging.info('Notifier task started')
+    except Exception as e:
+        logging.error(f"Failed to start notifier task: {e}")
+
 # Load users when bot starts
 load_users()
 
 # Add commands to the bot
 bot.tree.add_command(day.day)
 bot.tree.add_command(week.week)
-bot.tree.add_command(settings.settings)
 
 # Get the token from environment variables
 bot.run(os.getenv('DISCORD_TOKEN'))
