@@ -1,5 +1,5 @@
 # Use a multi-arch base image
-FROM --platform=$BUILDPLATFORM python:3.11-slim as builder
+FROM --platform=$BUILDPLATFORM python:3.11-slim AS builder
 
 WORKDIR /app
 
@@ -7,6 +7,9 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     python3-dev \
+    pkg-config \
+    libcairo2-dev \
+    libffi-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install dependencies
@@ -17,7 +20,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Final stage
-FROM --platform=$TARGETPLATFORM python:3.11-slim
+FROM python:3.11-slim
 
 WORKDIR /app
 
