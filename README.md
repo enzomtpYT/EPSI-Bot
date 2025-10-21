@@ -30,14 +30,19 @@ Affiche votre emploi du temps EPSI pour une semaine complète.
 - `date` : Date au format JJ/MM/AAAA (optionnel, utilise la date du jour pour trouver la semaine actuelle)
 - `image` : Si activé, envoie l'emploi du temps sous forme d'image
 
-### `/register` - S'enregistrer
-Enregistre votre nom d'utilisateur EPSI pour une utilisation plus rapide.
+### `/settings` - Gérer vos paramètres et enregistrement
+Permet d'enregistrer ou de supprimer votre nom d'utilisateur EPSI et de gérer les préférences de notifications.
 
-**Options :**
-- `username` : Votre nom d'utilisateur EPSI
+Sous-commandes / options disponibles :
+- `register` : Enregistrer ou mettre à jour votre nom d'utilisateur EPSI (ex : `/settings register username:mon_identifiant`).
+- `unregister` : Supprimer votre enregistrement (ex : `/settings unregister`).
+- `daily` : Activer/Désactiver les notifications quotidiennes (choix : Activer / Désactiver).
+- `weekly` : Activer/Désactiver les notifications hebdomadaires (choix : Activer / Désactiver).
 
-### `/unregister` - Se désenregistrer
-Supprime votre enregistrement EPSI.
+Exemples :
+- Enregistrer un nom d'utilisateur : `/settings register mon_identifiant`
+- Désenregistrer : `/settings unregister`
+- Activer les notifications quotidiennes : `/settings daily Activer`
 
 ## Installation
 
@@ -48,7 +53,7 @@ Supprime votre enregistrement EPSI.
 
 ## Configuration
 
-Pour utiliser le bot, vous devez d'abord vous enregistrer avec la commande `/register` en spécifiant votre nom d'utilisateur EPSI. Une fois enregistré, vous pourrez utiliser les commandes `/day` et `/week` sans avoir à spécifier votre nom d'utilisateur à chaque fois.
+Pour utiliser le bot, vous pouvez enregistrer votre nom d'utilisateur EPSI avec la sous-commande `/settings register` (ou fournir `username` chaque fois que vous faites la commande `/day` ou `/week`). Une fois enregistré, vous pourrez utiliser les commandes `/day` et `/week` sans avoir à spécifier votre nom d'utilisateur à chaque fois.
 
 ## Support
 

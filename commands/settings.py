@@ -46,6 +46,7 @@ async def settings(interaction: discord.Interaction, daily: str = None, weekly: 
             msg = await interaction.followup.send(f"Votre nom d'utilisateur a été mis à jour avec succès : {register}", ephemeral=True)
             logging.info(f"Utilisateur {interaction.user.name} (ID: {interaction.user.id}) a mis à jour son nom d'utilisateur : {register}")
         else:
+            username = register
             set_user(user_id, register)
             msg = await interaction.followup.send(f"Votre nom d'utilisateur a été enregistré avec succès : {register}", ephemeral=True)
             logging.info(f"Utilisateur {interaction.user.name} (ID: {interaction.user.id}) enregistré avec le nom d'utilisateur: {register}")

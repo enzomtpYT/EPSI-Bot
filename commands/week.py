@@ -34,7 +34,7 @@ async def week(
         username = get_user(interaction.user.id)
         if not username:
             logging.warning(f"Utilisateur {interaction.user.name} (ID: {interaction.user.id}) non enregistré")
-            await interaction.followup.send("Merci d'enregistrer votre nom d'utilisateur avec la commande `/register` ou de spécifier un nom d'utilisateur directement.", ephemeral=True)
+            await interaction.followup.send("Merci d'enregistrer votre nom d'utilisateur avec la commande `/settings register` ou de spécifier un nom d'utilisateur directement.", ephemeral=True)
             return
         logging.info(f"Utilisation du nom d'utilisateur enregistré: {username}")
     
