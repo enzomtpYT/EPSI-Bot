@@ -1,4 +1,6 @@
 discord.py==2.5.2
 aiohttp==3.9.1
 python-dotenv==1.0.0
-pycairo==1.25.1 
+pycairo==1.25.1
+peewee==3.18.2
+psycopg2-binary==2.9.11

@@ -88,4 +88,15 @@ async def settings(interaction: discord.Interaction, daily: str = None, weekly: 
         response_messages.append(f"• Notifications hebdomadaires : {weekly_status}")
 
     if response_messages:
-        await msg.edit(content=msg.content+"\n\n"+"\n".join(response_messages))
+        content_to_add = "\n\n" + "\n".join(response_messages)
+        try:
+            if 'msg' in locals() and msg is not None:
+                # Some channels/contexts may not allow editing interaction followups; fall back to send on failure
+                try:
+                    await msg.edit(content=(msg.content or "") + content_to_add)
+                except Exception:
+                    await interaction.followup.send("\n".join(response_messages), ephemeral=True)
+            else:
+                await interaction.followup.send("\n".join(response_messages), ephemeral=True)
+        except Exception as e:
+            logging.exception("Failed to deliver settings response")
