@@ -4,7 +4,9 @@ import logging
 from dotenv import load_dotenv
 import os
 from lib.user_manager import load_users
+from lib.cron_jobs import run_daily_job, run_weekly_job
 from commands import day, week, settings
+import aiocron
 
 # Configure logging
 logging.basicConfig(
@@ -32,6 +34,15 @@ async def on_ready():
         logging.info(f"Synchronisation de {len(synced)} commande(s)")
     except Exception as e:
         logging.error(f"Échec de la synchronisation des commandes : {e}")
+
+    @aiocron.crontab('0 6 * * *')  # Every day at 6 AM
+    async def daily_cronjob():
+        await run_daily_job(bot)
+
+    # Weekly job: send weekly schedules (every Monday at 06:00)
+    @aiocron.crontab('0 6 * * 1')
+    async def weekly_cronjob():
+        await run_weekly_job(bot)
 
 # Load users when bot starts
 load_users()
