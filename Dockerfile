@@ -1,5 +1,5 @@
 # Use a multi-arch base image
-FROM --platform=$BUILDPLATFORM python:3.11-slim AS builder
+FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
