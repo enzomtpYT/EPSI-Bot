@@ -5,16 +5,19 @@ WORKDIR /app
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
     gcc \
     python3-dev \
     pkg-config \
     libcairo2-dev \
     libffi-dev \
+    libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY . .
@@ -28,6 +31,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     tzdata \
     libcairo2 \
+    libpq5 \
     && rm -rf /var/lib/apt/lists/* \
     && ln -fs /usr/share/zoneinfo/Europe/Paris /etc/localtime \
     && echo "Europe/Paris" > /etc/timezone
