@@ -24,9 +24,10 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install runtime dependencies and set timezone
+# Install runtime dependencies (including libcairo2) and set timezone
 RUN apt-get update && apt-get install -y --no-install-recommends \
     tzdata \
+    libcairo2 \
     && rm -rf /var/lib/apt/lists/* \
     && ln -fs /usr/share/zoneinfo/Europe/Paris /etc/localtime \
     && echo "Europe/Paris" > /etc/timezone
