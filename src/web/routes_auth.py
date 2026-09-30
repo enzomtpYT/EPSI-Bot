@@ -130,5 +130,6 @@ async def get_current_user_info(request: Request) -> dict:
             "daily_notifications": profile.daily_notifications if profile else False,
             "weekly_notifications": profile.weekly_notifications if profile else False,
             "prefer_image": profile.prefer_image if profile else True,
+            "language": profile.language if profile else "fr",
         },
     }

@@ -20,29 +20,36 @@ class DayScheduleView(discord.ui.View):
         current_date: date,
         show_image: bool = True,
         user_id: int | None = None,
+        lang: str = "fr",
     ):
         super().__init__(timeout=180)
         self.ical_url = ical_url
         self.current_date = current_date
         self.show_image = show_image
         self.user_id = user_id
+        self.lang = lang
+
+        # Update button labels according to language
+        self.prev_day.label = "◀ " + ("Previous Day" if lang == "en" else "Jour précédent")
+        self.today.label = "Today" if lang == "en" else "Aujourd'hui"
+        self.next_day.label = ("Next Day" if lang == "en" else "Jour suivant") + " ▶"
+        self.toggle_view.label = "🖼️ / 📄 " + ("Toggle View" if lang == "en" else "Basculer vue")
 
     async def _update_message(self, interaction: discord.Interaction) -> None:
         await interaction.response.defer()
         courses = await get_day_schedule(self.ical_url, self.current_date)
 
         if self.show_image:
-            img_buf = render_day_image(self.current_date, courses)
+            img_buf = render_day_image(self.current_date, courses, lang=self.lang)
             file = discord.File(img_buf, filename=f"schedule_{self.current_date.isoformat()}.png")
             await interaction.edit_original_response(attachments=[file], embed=None, view=self)
         else:
-            embed = create_day_embed(self.current_date, courses)
+            embed = create_day_embed(self.current_date, courses, lang=self.lang)
             await interaction.edit_original_response(attachments=[], embed=embed, view=self)
 
     @discord.ui.button(label="◀ Jour précédent", style=discord.ButtonStyle.secondary)
     async def prev_day(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         self.current_date -= timedelta(days=1)
-        # Skip weekends if on Sunday moving back
         if self.current_date.weekday() == 6:
             self.current_date -= timedelta(days=2)
         await self._update_message(interaction)
@@ -55,7 +62,6 @@ class DayScheduleView(discord.ui.View):
     @discord.ui.button(label="Jour suivant ▶", style=discord.ButtonStyle.secondary)
     async def next_day(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         self.current_date += timedelta(days=1)
-        # Skip weekend if on Saturday moving forward
         if self.current_date.weekday() == 5:
             self.current_date += timedelta(days=2)
         await self._update_message(interaction)
@@ -77,23 +83,31 @@ class WeekScheduleView(discord.ui.View):
         start_of_week: date,
         show_image: bool = True,
         user_id: int | None = None,
+        lang: str = "fr",
     ):
         super().__init__(timeout=180)
         self.ical_url = ical_url
         self.start_of_week = start_of_week
         self.show_image = show_image
         self.user_id = user_id
+        self.lang = lang
+
+        # Update button labels according to language
+        self.prev_week.label = "◀ " + ("Previous Week" if lang == "en" else "Semaine précédente")
+        self.current_week.label = "This Week" if lang == "en" else "Cette semaine"
+        self.next_week.label = ("Next Week" if lang == "en" else "Semaine suivante") + " ▶"
+        self.toggle_view.label = "🖼️ / 📄 " + ("Toggle View" if lang == "en" else "Basculer vue")
 
     async def _update_message(self, interaction: discord.Interaction) -> None:
         await interaction.response.defer()
         courses = await get_week_schedule(self.ical_url, self.start_of_week)
 
         if self.show_image:
-            img_buf = render_week_image(self.start_of_week, courses)
+            img_buf = render_week_image(self.start_of_week, courses, lang=self.lang)
             file = discord.File(img_buf, filename=f"week_{self.start_of_week.isoformat()}.png")
             await interaction.edit_original_response(attachments=[file], embed=None, view=self)
         else:
-            embed = create_week_embed(self.start_of_week, courses)
+            embed = create_week_embed(self.start_of_week, courses, lang=self.lang)
             await interaction.edit_original_response(attachments=[], embed=embed, view=self)
 
     @discord.ui.button(label="◀ Semaine précédente", style=discord.ButtonStyle.secondary)

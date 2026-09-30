@@ -10,6 +10,7 @@ from discord import app_commands
 
 from database import get_user_profile
 from services.embed_builder import create_week_embed
+from services.i18n import resolve_user_language
 from services.ical_service import get_week_schedule
 from services.image_renderer import render_week_image
 from ui.views import WeekScheduleView
@@ -19,12 +20,12 @@ logger = logging.getLogger(__name__)
 
 @app_commands.command(
     name="week",
-    description="Afficher l'emploi du temps EPSI pour une semaine complète",
+    description="Afficher l'emploi du temps EPSI pour une semaine complète / View weekly schedule",
 )
 @app_commands.describe(
-    date="Date comprise dans la semaine au format JJ/MM/AAAA (par défaut: semaine actuelle)",
-    image="Afficher sous forme de calendrier image ou d'embed texte",
-    url="URL iCal directe optionnelle (si non enregistré)",
+    date="Date comprise dans la semaine au format JJ/MM/AAAA / Date DD/MM/YYYY",
+    image="Afficher sous forme de calendrier image ou d'embed / Image or Text embed",
+    url="URL iCal directe optionnelle / Direct iCal URL",
 )
 @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
 @app_commands.user_install()
@@ -37,22 +38,27 @@ async def week_command(
     """Execute /week slash command."""
     await interaction.response.defer(ephemeral=False)
 
+    profile = await get_user_profile(interaction.user.id)
+    lang = resolve_user_language(interaction, profile)
+
     target_url = url
     prefer_image = True if image is None else image
 
     if not target_url:
-        profile = await get_user_profile(interaction.user.id)
         if profile and profile.ical_url:
             target_url = profile.ical_url
             if image is None:
                 prefer_image = profile.prefer_image
         else:
-            await interaction.followup.send(
-                "❌ **Vous n'avez pas encore enregistré votre lien iCal !**\n"
+            missing_msg = (
+                "❌ **You haven't registered your iCal link yet!**\n"
+                "Use `/settings register <your_ical_url>` to configure your schedule or pass the `url:` parameter."
+                if lang == "en"
+                else "❌ **Vous n'avez pas encore enregistré votre lien iCal !**\n"
                 "Utilisez la commande `/settings register <votre_lien_ical>` pour lier votre emploi du temps "
-                "ou passez le paramètre `url:` dans la commande.",
-                ephemeral=True,
+                "ou passez le paramètre `url:` dans la commande."
             )
+            await interaction.followup.send(missing_msg, ephemeral=True)
             return
 
     target_date = datetime.now().date()
@@ -60,10 +66,12 @@ async def week_command(
         try:
             target_date = datetime.strptime(date, "%d/%m/%Y").date()
         except ValueError:
-            await interaction.followup.send(
-                "❌ **Format de date invalide.** Veuillez utiliser le format `JJ/MM/AAAA` (ex: `15/10/2026`).",
-                ephemeral=True,
+            invalid_date_msg = (
+                "❌ **Invalid date format.** Please use `DD/MM/YYYY` (e.g. `15/10/2026`)."
+                if lang == "en"
+                else "❌ **Format de date invalide.** Veuillez utiliser le format `JJ/MM/AAAA` (ex: `15/10/2026`)."
             )
+            await interaction.followup.send(invalid_date_msg, ephemeral=True)
             return
 
     start_of_week = target_date - timedelta(days=target_date.weekday())
@@ -75,20 +83,23 @@ async def week_command(
             start_of_week=start_of_week,
             show_image=prefer_image,
             user_id=interaction.user.id,
+            lang=lang,
         )
 
         if prefer_image:
-            img_buf = render_week_image(start_of_week, courses)
+            img_buf = render_week_image(start_of_week, courses, lang=lang)
             file = discord.File(img_buf, filename=f"week_{start_of_week.isoformat()}.png")
             await interaction.followup.send(file=file, view=view)
         else:
-            embed = create_week_embed(start_of_week, courses)
+            embed = create_week_embed(start_of_week, courses, lang=lang)
             await interaction.followup.send(embed=embed, view=view)
 
     except Exception as e:
         logger.error(f"Error executing /week: {e}", exc_info=True)
-        await interaction.followup.send(
-            "⚠️ Une erreur est survenue lors de la récupération ou de l'affichage de votre emploi du temps. "
-            "Vérifiez que votre lien Hyperplanning est toujours valide.",
-            ephemeral=True,
+        err_msg = (
+            "⚠️ An error occurred while fetching or displaying your schedule. Please ensure your Hyperplanning link is valid."
+            if lang == "en"
+            else "⚠️ Une erreur est survenue lors de la récupération ou de l'affichage de votre emploi du temps. "
+            "Vérifiez que votre lien Hyperplanning est toujours valide."
         )
+        await interaction.followup.send(err_msg, ephemeral=True)

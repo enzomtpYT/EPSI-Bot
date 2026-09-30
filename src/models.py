@@ -59,6 +59,7 @@ class UserProfile(SQLModel, table=True):
     prefer_image: bool = SQLField(
         default=True, description="Render schedules as image cards by default"
     )
+    language: str = SQLField(default="fr", description="Language preference ('fr' or 'en')")
     updated_at: datetime = SQLField(
         default_factory=get_utc_now, description="Last update timestamp"
     )

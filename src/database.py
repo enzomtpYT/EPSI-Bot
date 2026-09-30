@@ -6,6 +6,7 @@ import logging
 from collections.abc import Sequence
 from datetime import UTC, datetime
 
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlmodel import SQLModel, col, select
 
@@ -33,6 +34,19 @@ async def init_db() -> None:
     try:
         async with engine.begin() as conn:
             await conn.run_sync(SQLModel.metadata.create_all)
+            try:
+                await conn.execute(
+                    text(
+                        "ALTER TABLE users ADD COLUMN IF NOT EXISTS language VARCHAR(10) DEFAULT 'fr';"
+                    )
+                )
+            except Exception:
+                try:
+                    await conn.execute(
+                        text("ALTER TABLE users ADD COLUMN language VARCHAR(10) DEFAULT 'fr';")
+                    )
+                except Exception:
+                    pass
         logger.info("Database schema initialized successfully.")
     except Exception as e:
         if "postgresql" in settings.database_url:
@@ -42,6 +56,12 @@ async def init_db() -> None:
             set_database_url(settings.sqlite_database_url)
             async with engine.begin() as conn:
                 await conn.run_sync(SQLModel.metadata.create_all)
+                try:
+                    await conn.execute(
+                        text("ALTER TABLE users ADD COLUMN language VARCHAR(10) DEFAULT 'fr';")
+                    )
+                except Exception:
+                    pass
             logger.info("Database initialized successfully with SQLite fallback.")
         else:
             raise
@@ -95,6 +115,7 @@ async def update_user_notifications(
     daily: bool | None = None,
     weekly: bool | None = None,
     prefer_image: bool | None = None,
+    language: str | None = None,
 ) -> UserProfile | None:
     """Update notification preferences for a user."""
     async with async_session_maker() as session:
@@ -111,6 +132,8 @@ async def update_user_notifications(
             user.weekly_notifications = weekly
         if prefer_image is not None:
             user.prefer_image = prefer_image
+        if language is not None:
+            user.language = language
 
         user.updated_at = datetime.now(UTC)
         await session.commit()
@@ -139,6 +162,7 @@ async def update_user_full_settings(
     daily_notifications: bool | None = None,
     weekly_notifications: bool | None = None,
     prefer_image: bool | None = None,
+    language: str | None = None,
 ) -> UserProfile:
     """Update complete user profile settings, creating profile if not exists."""
     async with async_session_maker() as session:
@@ -158,6 +182,7 @@ async def update_user_full_settings(
                 if weekly_notifications is not None
                 else False,
                 prefer_image=prefer_image if prefer_image is not None else True,
+                language=language if language is not None else "fr",
                 updated_at=now,
             )
             session.add(user)
@@ -170,6 +195,8 @@ async def update_user_full_settings(
                 user.weekly_notifications = weekly_notifications
             if prefer_image is not None:
                 user.prefer_image = prefer_image
+            if language is not None:
+                user.language = language
             user.updated_at = now
 
         await session.commit()

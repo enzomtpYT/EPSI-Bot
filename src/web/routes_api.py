@@ -19,12 +19,13 @@ api_router = APIRouter(prefix="/api", tags=["api"])
 
 
 class UpdateSettingsRequest(BaseModel):
-    """Payload for updating user notification and calendar settings."""
+    """Payload for updating user notification, language, and calendar settings."""
 
     ical_url: str | None = None
     daily_notifications: bool | None = None
     weekly_notifications: bool | None = None
     prefer_image: bool | None = None
+    language: str | None = None
 
 
 @api_router.post("/settings")
@@ -43,6 +44,7 @@ async def update_settings(payload: UpdateSettingsRequest, request: Request) -> d
         daily_notifications=payload.daily_notifications,
         weekly_notifications=payload.weekly_notifications,
         prefer_image=payload.prefer_image,
+        language=payload.language,
     )
 
     return {
@@ -52,6 +54,7 @@ async def update_settings(payload: UpdateSettingsRequest, request: Request) -> d
             "daily_notifications": updated_profile.daily_notifications,
             "weekly_notifications": updated_profile.weekly_notifications,
             "prefer_image": updated_profile.prefer_image,
+            "language": updated_profile.language,
         },
     }
 

@@ -163,6 +163,7 @@ async def test_auth_callback_and_settings_flow():
                     "daily_notifications": True,
                     "weekly_notifications": True,
                     "prefer_image": False,
+                    "language": "en",
                 },
             )
             assert resp_settings.status_code == 200
@@ -171,6 +172,11 @@ async def test_auth_callback_and_settings_flow():
             assert settings_data["settings"]["daily_notifications"] is True
             assert settings_data["settings"]["weekly_notifications"] is True
             assert settings_data["settings"]["prefer_image"] is False
+            assert settings_data["settings"]["language"] == "en"
+
+            # Check /api/me reflects new language
+            resp_me_after = await client.get("/api/me")
+            assert resp_me_after.json()["settings"]["language"] == "en"
 
             # 4. Check schedule without url param (uses DB ical_url)
             with patch("web.routes_api.get_week_schedule", new=AsyncMock(return_value=[])):

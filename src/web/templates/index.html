@@ -126,6 +126,14 @@
           </div>
 
           <div class="form-group">
+            <label for="settingLanguage" id="settingLangLabel">Langue du bot Discord</label>
+            <select id="settingLanguage" class="input-field">
+              <option value="fr">🇫🇷 Français</option>
+              <option value="en">🇬🇧 English</option>
+            </select>
+          </div>
+
+          <div class="form-group">
             <label id="settingsNotifLabel">Notifications Discord</label>
             <div class="form-switch">
               <span id="dailyNotifLabel">Rappels quotidiens (06h00)</span>
@@ -237,6 +245,7 @@
             dailyNotif: "Rappels quotidiens (06h00)",
             weeklyNotif: "Rappels hebdomadaires (Lundi 06h00)",
             preferImage: "Format d'affichage Discord (Image)",
+            botLanguage: "Langue du bot Discord",
             logout: "Déconnexion",
           },
           en: {
@@ -269,6 +278,7 @@
             dailyNotif: "Daily reminders (06:00)",
             weeklyNotif: "Weekly reminders (Mon 06:00)",
             preferImage: "Discord display format (Image)",
+            botLanguage: "Discord Bot Language",
             logout: "Log out",
           },
         };
@@ -342,6 +352,19 @@
           localStorage.setItem("edtLanguage", currentLanguage);
           applyLanguage();
 
+          const settingLangSelect = document.getElementById("settingLanguage");
+          if (settingLangSelect) settingLangSelect.value = currentLanguage;
+
+          // If user is logged in, sync language preference to Discord bot database
+          if (currentUser) {
+            currentUser.settings.language = currentLanguage;
+            fetch("/api/settings", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ language: currentLanguage }),
+            }).catch((err) => console.warn("Could not sync language setting to server:", err));
+          }
+
           if (currentScheduleData) {
             displaySchedule(currentScheduleData, currentMondayDate);
           }
@@ -375,6 +398,9 @@
           document.getElementById("dailyNotifLabel").textContent = translations[currentLanguage].dailyNotif;
           document.getElementById("weeklyNotifLabel").textContent = translations[currentLanguage].weeklyNotif;
           document.getElementById("preferImageLabel").textContent = translations[currentLanguage].preferImage;
+          if (document.getElementById("settingLangLabel")) {
+            document.getElementById("settingLangLabel").textContent = translations[currentLanguage].botLanguage;
+          }
           document.getElementById("logoutBtn").innerHTML = `<i class="bi bi-box-arrow-right"></i> ${translations[currentLanguage].logout}`;
 
           if (initialMessage) {
@@ -400,6 +426,15 @@
               settingDailyNotif.checked = Boolean(data.settings.daily_notifications);
               settingWeeklyNotif.checked = Boolean(data.settings.weekly_notifications);
               settingPreferImage.checked = Boolean(data.settings.prefer_image);
+
+              // Apply saved language from user profile if present
+              if (data.settings.language) {
+                currentLanguage = data.settings.language;
+                localStorage.setItem("edtLanguage", currentLanguage);
+                applyLanguage();
+              }
+              const settingLangSelect = document.getElementById("settingLanguage");
+              if (settingLangSelect) settingLangSelect.value = currentLanguage;
 
               // If iCal URL is configured in DB, load schedule immediately
               if (data.settings.ical_url) {
@@ -448,6 +483,7 @@
           const dailyVal = settingDailyNotif.checked;
           const weeklyVal = settingWeeklyNotif.checked;
           const preferImageVal = settingPreferImage.checked;
+          const langVal = document.getElementById("settingLanguage").value;
 
           try {
             saveSettingsBtn.disabled = true;
@@ -459,6 +495,7 @@
                 daily_notifications: dailyVal,
                 weekly_notifications: weeklyVal,
                 prefer_image: preferImageVal,
+                language: langVal,
               }),
             });
 
@@ -475,6 +512,13 @@
             if (icalUrlVal) {
               localStorage.setItem("edtIcalUrl", icalUrlVal);
             }
+
+            if (langVal !== currentLanguage) {
+              currentLanguage = langVal;
+              localStorage.setItem("edtLanguage", currentLanguage);
+              applyLanguage();
+            }
+
             settingsSaveStatus.textContent = translations[currentLanguage].settingsSaved;
             settingsSaveStatus.style.display = "block";
 

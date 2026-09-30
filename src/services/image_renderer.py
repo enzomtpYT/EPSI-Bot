@@ -12,6 +12,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 from models import CourseEvent
+from services.i18n import DAYS_EN, DAYS_FR, MONTHS_EN, MONTHS_FR, t
 
 FRENCH_DAYS = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
 FRENCH_MONTHS = [
@@ -99,7 +100,9 @@ def get_course_colors(course_name: str) -> tuple[tuple[int, int, int], tuple[int
     return card_bg, accent
 
 
-def render_day_image(target_date: date, courses: Sequence[CourseEvent]) -> io.BytesIO:
+def render_day_image(
+    target_date: date, courses: Sequence[CourseEvent], lang: str = "fr"
+) -> io.BytesIO:
     """Render a clean, high-resolution daily schedule card with Pillow."""
     width = 850
     card_margin = 30
@@ -121,15 +124,21 @@ def render_day_image(target_date: date, courses: Sequence[CourseEvent]) -> io.By
     font_small = get_font(14)
 
     # Header section
-    weekday_fr = FRENCH_DAYS[target_date.weekday()]
-    month_fr = FRENCH_MONTHS[target_date.month - 1]
-    title_text = f"{weekday_fr} {target_date.day} {month_fr} {target_date.year}"
+    weekday_str = (DAYS_EN if lang == "en" else DAYS_FR)[target_date.weekday()]
+    month_str = (MONTHS_EN if lang == "en" else MONTHS_FR)[target_date.month - 1]
+    title_text = (
+        f"{weekday_str}, {month_str} {target_date.day}, {target_date.year}"
+        if lang == "en"
+        else f"{weekday_str} {target_date.day} {month_str} {target_date.year}"
+    )
 
     # Header top bar accent
     draw.rectangle([0, 0, width, 6], fill=COLOR_ACCENT)
     draw.text((card_margin, 35), title_text, fill=COLOR_TEXT_MAIN, font=font_large)
 
-    subtitle_text = f"Emploi du temps EPSI • {total_courses} cours"
+    courses_label = "classes" if lang == "en" else "cours"
+    subtitle_prefix = "EPSI Timetable" if lang == "en" else "Emploi du temps EPSI"
+    subtitle_text = f"{subtitle_prefix} • {total_courses} {courses_label}"
     draw.text((card_margin, 68), subtitle_text, fill=COLOR_TEXT_MUTED, font=font_small)
 
     if total_courses == 0:
@@ -138,7 +147,7 @@ def render_day_image(target_date: date, courses: Sequence[CourseEvent]) -> io.By
         draw.rounded_rectangle(box_rect, radius=12, fill=(31, 41, 55), outline=COLOR_CARD_BORDER)
         draw.text(
             (card_margin + 30, box_top + 30),
-            "🎉 Aucun cours de prévu pour cette journée !",
+            f"🎉 {t('no_classes_day', lang=lang)}",
             fill=COLOR_TEXT_MAIN,
             font=font_medium,
         )
@@ -197,7 +206,9 @@ def render_day_image(target_date: date, courses: Sequence[CourseEvent]) -> io.By
     return buf
 
 
-def render_week_image(start_of_week: date, courses: Sequence[CourseEvent]) -> io.BytesIO:
+def render_week_image(
+    start_of_week: date, courses: Sequence[CourseEvent], lang: str = "fr"
+) -> io.BytesIO:
     """Render a weekly calendar timetable with proportional time slots (08:00 - 19:00).
 
     Classes span proportionally across their hours (e.g. 9-13 expands across 4 slots),
@@ -240,16 +251,25 @@ def render_week_image(start_of_week: date, courses: Sequence[CourseEvent]) -> io
 
     # Header title
     week_num = start_of_week.isocalendar()[1]
-    title = f"Emploi du temps EPSI • Semaine {week_num}"
+    title = (
+        f"EPSI Schedule • Week {week_num}"
+        if lang == "en"
+        else f"Emploi du temps EPSI • Semaine {week_num}"
+    )
     draw.text((margin_x, margin_y + 10), title, fill=COLOR_TEXT_MAIN, font=font_title)
 
-    range_str = f"Du {start_of_week.day} {FRENCH_MONTHS[start_of_week.month - 1]} au {start_of_week.day + 4} {FRENCH_MONTHS[start_of_week.month - 1]} {start_of_week.year}"
+    month_name = (MONTHS_EN if lang == "en" else MONTHS_FR)[start_of_week.month - 1]
+    range_str = (
+        f"Week of {start_of_week.day} to {start_of_week.day + 4} {month_name} {start_of_week.year}"
+        if lang == "en"
+        else f"Du {start_of_week.day} au {start_of_week.day + 4} {month_name} {start_of_week.year}"
+    )
     draw.text((margin_x, margin_y + 44), range_str, fill=COLOR_TEXT_MUTED, font=font_course_meta)
 
     # Left Time Axis (Hours labels 08:00 to 19:00)
     for h in range(start_hour, end_hour + 1):
         y_pos = grid_top + (h - start_hour) * hour_height
-        hour_label = f"{h:02d}h00"
+        hour_label = f"{h:02d}:00" if lang == "en" else f"{h:02d}h00"
         draw.text(
             (margin_x + 6, y_pos - 8),
             hour_label,
@@ -272,7 +292,8 @@ def render_week_image(start_of_week: date, courses: Sequence[CourseEvent]) -> io
         header_rect = [col_x, margin_y + header_h, col_x + day_width, grid_top - 4]
         draw.rounded_rectangle(header_rect, radius=6, fill=(31, 41, 55), outline=COLOR_CARD_BORDER)
         cur_day = start_of_week.day + i
-        day_title = f"{FRENCH_DAYS[i]} {cur_day}"
+        day_name = (DAYS_EN if lang == "en" else DAYS_FR)[i]
+        day_title = f"{day_name} {cur_day}"
         draw.text(
             (col_x + 14, margin_y + header_h + 12),
             day_title,
@@ -358,7 +379,8 @@ def render_week_image(start_of_week: date, courses: Sequence[CourseEvent]) -> io
 
             # Teacher (only if sufficient vertical space)
             if card_h >= 75 and course.teacher:
-                teacher_text = f"Prof: {course.teacher}"
+                teacher_prefix = "Teacher" if lang == "en" else "Prof"
+                teacher_text = f"{teacher_prefix}: {course.teacher}"
                 if len(teacher_text) > 26:
                     teacher_text = teacher_text[:24] + "..."
                 draw.text(
@@ -371,7 +393,8 @@ def render_week_image(start_of_week: date, courses: Sequence[CourseEvent]) -> io
 
             # Room (if space allows)
             if card_h >= 95 and course.room:
-                room_text = f"Salle: {course.room}"
+                room_prefix = "Room" if lang == "en" else "Salle"
+                room_text = f"{room_prefix}: {course.room}"
                 if len(room_text) > 26:
                     room_text = room_text[:24] + "..."
                 draw.text(
