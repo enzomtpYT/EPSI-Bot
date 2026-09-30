@@ -15,6 +15,7 @@ from tasks.cron_jobs import (
     run_daily_notification_job,
     run_weekly_notification_job,
 )
+from web.server import create_uvicorn_server
 
 # Configure logging
 logging.basicConfig(
@@ -61,13 +62,20 @@ async def main() -> None:
     logger.info("Starting EPSI Bot v2.0...")
     await init_db()
 
+    web_server = create_uvicorn_server()
+    logger.info(f"Serving WebUI on http://{settings.web_host}:{settings.web_port}")
+
     token = settings.discord_token.strip().strip("'\"")
     if not token or token == "YOUR_DISCORD_TOKEN":
-        logger.error("No valid DISCORD_TOKEN found in environment. Please set it in .env")
+        logger.warning("No valid DISCORD_TOKEN found in environment. Starting WebUI standalone...")
+        await web_server.serve()
         return
 
     async with bot:
-        await bot.start(token)
+        await asyncio.gather(
+            bot.start(token),
+            web_server.serve(),
+        )
 
 
 if __name__ == "__main__":

@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark-mode">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EPSI Emploi du temps</title>
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#333333" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="EPSI EDT" />
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <div class="app-container">
+      <header class="header">
+        <h1>EPSI Emploi du temps</h1>
+        <div class="fixed-toggles">
+          <!-- Discord Authentication / Profile Badge -->
+          <div id="discordAuthContainer">
+            <a id="discordLoginBtn" href="/auth/login" class="discord-btn" title="Connexion Discord">
+              <i class="bi bi-discord"></i> <span class="btn-text">Connexion</span>
+            </a>
+            <button id="userProfileBtn" class="user-profile-btn" style="display: none;" title="Paramètres du compte">
+              <img id="userAvatar" src="" alt="Avatar" class="user-avatar" />
+              <span id="userName" class="user-name"></span>
+            </button>
+          </div>
+          <!-- Theme toggle button -->
+          <button id="themeToggle" class="theme-toggle" aria-label="Toggle theme">
+            <i id="themeIcon" class="bi bi-sun-fill"></i>
+          </button>
+          <!-- Language toggle button -->
+          <button id="langToggle" class="lang-toggle" aria-label="Toggle language">
+            <span id="langText">FR</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- iCal URL input (shown if not stored and not logged in) -->
+      <div id="userIdContainer" class="card hidden">
+        <h5 id="welcomeTitle">Bienvenue</h5>
+        <p id="welcomeText">Veuillez entrer votre lien iCal Hyperplanning pour continuer, ou connectez-vous avec Discord.</p>
+        <div class="input-group">
+          <input type="url" class="input-field" id="newUserId" placeholder="https://.../ical.ics" />
+          <button class="btn btn-primary" type="button" id="saveUserId">Enregistrer</button>
+        </div>
+      </div>
+
+      <!-- Week selector with navigation buttons -->
+      <div class="controls-toolbar">
+        <input type="hidden" id="weekDate" />
+        <button class="btn btn-secondary nav-btn" id="prevWeekBtn">
+          <i class="bi bi-arrow-left"></i> <span class="btn-text">Semaine précédente</span>
+        </button>
+        <button class="btn btn-secondary nav-btn" id="refreshBtn" title="Sans cache">
+          <i class="bi bi-arrow-clockwise"></i> <span class="btn-text" id="refreshBtnText">Actualiser</span>
+        </button>
+        <button class="btn btn-secondary nav-btn" type="button" id="changeUserId">
+          <i class="bi bi-link-45deg"></i> <span class="btn-text" id="changeUserText">Changer d'iCal</span>
+        </button>
+        <button class="btn btn-secondary nav-btn" type="button" id="datePickerBtn">
+          <i class="bi bi-calendar3"></i> <span class="btn-text" id="datePickerBtnText">Choisir semaine</span>
+        </button>
+        <button class="btn btn-secondary nav-btn" id="nextWeekBtn">
+          <span class="btn-text">Semaine suivante</span> <i class="bi bi-arrow-right"></i>
+        </button>
+      </div>
+
+      <!-- Selected Week Info -->
+      <div class="alert alert-info" id="selectedWeek" role="alert">Semaine du...</div>
+
+      <!-- Mobile day tabs navigation -->
+      <div class="mobile-tabs" id="daysTabs">
+        <!-- Day tabs inserted here by JS -->
+      </div>
+
+      <!-- Main Schedule Grid -->
+      <div id="scheduleContainer" class="schedule-grid">
+        <div class="spinner-container" style="grid-column: 1 / -1;">
+          <div class="spinner"></div>
+          <p id="initial-message">Chargement de l'emploi du temps...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Custom Week Picker Modal -->
+    <div id="weekPickerModal" class="modal-overlay">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 id="weekPickerTitle">Choisir une semaine</h5>
+          <button type="button" class="close-btn" id="closeWeekPicker">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="month-selector">
+            <button type="button" class="btn btn-secondary btn-icon" id="prevMonth">&lt;</button>
+            <span id="currentMonthYear">Octobre 2026</span>
+            <button type="button" class="btn btn-secondary btn-icon" id="nextMonth">&gt;</button>
+          </div>
+          <div class="calendar-grid" id="calendarGrid">
+            <!-- Calendar generated here -->
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="cancelWeekPicker">Annuler</button>
+          <button type="button" class="btn btn-primary" id="selectWeek" disabled>Sélectionner</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- User Settings Modal -->
+    <div id="settingsModal" class="modal-overlay">
+      <div class="modal-content settings-modal-content">
+        <div class="modal-header">
+          <h5 id="settingsModalTitle"><i class="bi bi-person-gear"></i> Paramètres du compte</h5>
+          <button type="button" class="close-btn" id="closeSettingsModal">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="settingsIcalUrl" id="settingsIcalLabel">Lien iCal Hyperplanning</label>
+            <input type="url" id="settingsIcalUrl" class="input-field" placeholder="https://.../ical.ics" />
+          </div>
+
+          <div class="form-group">
+            <label id="settingsNotifLabel">Notifications Discord</label>
+            <div class="form-switch">
+              <span id="dailyNotifLabel">Rappels quotidiens (06h00)</span>
+              <label class="switch">
+                <input type="checkbox" id="settingDailyNotif" />
+                <span class="slider"></span>
+              </label>
+            </div>
+            <div class="form-switch">
+              <span id="weeklyNotifLabel">Rappels hebdomadaires (Lundi 06h00)</span>
+              <label class="switch">
+                <input type="checkbox" id="settingWeeklyNotif" />
+                <span class="slider"></span>
+              </label>
+            </div>
+            <div class="form-switch">
+              <span id="preferImageLabel">Format d'affichage Discord (Image)</span>
+              <label class="switch">
+                <input type="checkbox" id="settingPreferImage" checked />
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+          <div id="settingsSaveStatus" style="display: none;" class="alert alert-info">Modifications enregistrées !</div>
+        </div>
+        <div class="modal-footer" style="justify-content: space-between;">
+          <a href="/auth/logout" class="btn btn-danger" id="logoutBtn"><i class="bi bi-box-arrow-right"></i> Déconnexion</a>
+          <button type="button" class="btn btn-primary" id="saveSettingsBtn"><i class="bi bi-check-lg"></i> Enregistrer</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", async function () {
+        // DOM elements
+        const userIdContainer = document.getElementById("userIdContainer");
+        const newUserId = document.getElementById("newUserId");
+        const saveUserId = document.getElementById("saveUserId");
+        const changeUserId = document.getElementById("changeUserId");
+        const changeUserText = document.getElementById("changeUserText");
+        const weekDate = document.getElementById("weekDate");
+        const scheduleContainer = document.getElementById("scheduleContainer");
+        const daysTabs = document.getElementById("daysTabs");
+        const initialMessage = document.getElementById("initial-message");
+        const themeToggle = document.getElementById("themeToggle");
+        const themeIcon = document.getElementById("themeIcon");
+        const langToggle = document.getElementById("langToggle");
+        const langText = document.getElementById("langText");
+        const prevWeekBtn = document.getElementById("prevWeekBtn");
+        const nextWeekBtn = document.getElementById("nextWeekBtn");
+        const datePickerBtn = document.getElementById("datePickerBtn");
+        const welcomeTitle = document.getElementById("welcomeTitle");
+        const welcomeText = document.getElementById("welcomeText");
+
+        // Auth & Settings DOM
+        const discordLoginBtn = document.getElementById("discordLoginBtn");
+        const userProfileBtn = document.getElementById("userProfileBtn");
+        const userAvatar = document.getElementById("userAvatar");
+        const userName = document.getElementById("userName");
+        const settingsModal = document.getElementById("settingsModal");
+        const closeSettingsModal = document.getElementById("closeSettingsModal");
+        const saveSettingsBtn = document.getElementById("saveSettingsBtn");
+        const settingsIcalUrl = document.getElementById("settingsIcalUrl");
+        const settingDailyNotif = document.getElementById("settingDailyNotif");
+        const settingWeeklyNotif = document.getElementById("settingWeeklyNotif");
+        const settingPreferImage = document.getElementById("settingPreferImage");
+        const settingsSaveStatus = document.getElementById("settingsSaveStatus");
+
+        // Week picker modal elements
+        const weekPickerModal = document.getElementById("weekPickerModal");
+        const weekPickerTitle = document.getElementById("weekPickerTitle");
+        const closeWeekPicker = document.getElementById("closeWeekPicker");
+        const cancelWeekPicker = document.getElementById("cancelWeekPicker");
+        const selectWeek = document.getElementById("selectWeek");
+        const prevMonth = document.getElementById("prevMonth");
+        const nextMonth = document.getElementById("nextMonth");
+        const currentMonthYear = document.getElementById("currentMonthYear");
+        const calendarGrid = document.getElementById("calendarGrid");
+
+        // Translation dictionaries
+        const translations = {
+          fr: {
+            title: "EPSI Emploi du temps",
+            welcome: "Bienvenue",
+            userIdPrompt: "Veuillez entrer votre lien iCal Hyperplanning pour continuer, ou connectez-vous avec Discord.",
+            enterUserId: "Lien iCal (https://.../ical.ics)",
+            save: "Enregistrer",
+            prevWeek: "Semaine précédente",
+            nextWeek: "Semaine suivante",
+            changeUser: "Changer d'iCal",
+            refresh: "Actualiser",
+            pickWeek: "Choisir semaine",
+            weekPickerTitle: "Choisir une semaine",
+            cancel: "Annuler",
+            select: "Sélectionner",
+            weekOf: "Semaine du",
+            to: "au",
+            loading: "Chargement de l'emploi du temps...",
+            enterIdToShow: "Veuillez entrer votre lien iCal pour afficher l'emploi du temps",
+            errorFetching: "Erreur lors de la récupération de l'emploi du temps. Veuillez vérifier votre lien.",
+            noClass: "Aucun cours prévu",
+            days: ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi"],
+            room: "Salle non spécifiée",
+            teacher: "Enseignant non spécifié",
+            untitled: "Sans titre",
+            loginDiscord: "Connexion",
+            settingsTitle: "Paramètres du compte",
+            settingsSaved: "Paramètres enregistrés !",
+            dailyNotif: "Rappels quotidiens (06h00)",
+            weeklyNotif: "Rappels hebdomadaires (Lundi 06h00)",
+            preferImage: "Format d'affichage Discord (Image)",
+            logout: "Déconnexion",
+          },
+          en: {
+            title: "EPSI Schedule",
+            welcome: "Welcome",
+            userIdPrompt: "Please enter your Hyperplanning iCal URL to continue, or sign in with Discord.",
+            enterUserId: "iCal link (https://.../ical.ics)",
+            save: "Save",
+            prevWeek: "Previous week",
+            nextWeek: "Next week",
+            changeUser: "Change iCal",
+            refresh: "Refresh",
+            pickWeek: "Pick week",
+            weekPickerTitle: "Pick a week",
+            cancel: "Cancel",
+            select: "Select",
+            weekOf: "Week of",
+            to: "to",
+            loading: "Loading schedule...",
+            enterIdToShow: "Please enter your iCal URL to display the schedule",
+            errorFetching: "Error fetching schedule data. Please check your iCal URL.",
+            noClass: "No classes scheduled",
+            days: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+            room: "Room not specified",
+            teacher: "Teacher not specified",
+            untitled: "Untitled",
+            loginDiscord: "Login",
+            settingsTitle: "Account Settings",
+            settingsSaved: "Settings saved!",
+            dailyNotif: "Daily reminders (06:00)",
+            weeklyNotif: "Weekly reminders (Mon 06:00)",
+            preferImage: "Discord display format (Image)",
+            logout: "Log out",
+          },
+        };
+
+        // State variables
+        let activeDayIndex = 0;
+        let currentScheduleData = null;
+        let isMobileView = window.innerWidth < 768;
+        let currentMondayDate = getMondayOfCurrentWeek();
+        let currentLanguage = localStorage.getItem("edtLanguage") || "fr";
+        let currentUser = null;
+
+        // Week picker variables
+        let pickerCurrentDate = new Date();
+        let selectedWeekStart = null;
+
+        weekDate.value = formatDateForInput(currentMondayDate);
+        applyLanguage();
+        updateSelectedWeekText(currentMondayDate);
+
+        // Check authentication state from server
+        await checkAuth();
+
+        // Responsive resize listener
+        window.addEventListener("resize", function () {
+          const newIsMobileView = window.innerWidth < 768;
+          if (newIsMobileView !== isMobileView) {
+            isMobileView = newIsMobileView;
+            if (currentScheduleData) {
+              displaySchedule(currentScheduleData, currentMondayDate);
+            }
+          }
+        });
+
+        // Theme Handling
+        function applyTheme() {
+          const savedTheme = localStorage.getItem("edtTheme") || "dark";
+          const htmlElement = document.documentElement;
+
+          if (savedTheme === "light") {
+            htmlElement.classList.remove("dark-mode");
+            themeIcon.classList.remove("bi-sun-fill");
+            themeIcon.classList.add("bi-moon-fill");
+          } else {
+            htmlElement.classList.add("dark-mode");
+            themeIcon.classList.remove("bi-moon-fill");
+            themeIcon.classList.add("bi-sun-fill");
+          }
+        }
+
+        function toggleTheme() {
+          const htmlElement = document.documentElement;
+          if (htmlElement.classList.contains("dark-mode")) {
+            htmlElement.classList.remove("dark-mode");
+            themeIcon.classList.remove("bi-sun-fill");
+            themeIcon.classList.add("bi-moon-fill");
+            localStorage.setItem("edtTheme", "light");
+          } else {
+            htmlElement.classList.add("dark-mode");
+            themeIcon.classList.remove("bi-moon-fill");
+            themeIcon.classList.add("bi-sun-fill");
+            localStorage.setItem("edtTheme", "dark");
+          }
+        }
+        themeToggle.addEventListener("click", toggleTheme);
+        applyTheme();
+
+        // Language Handling
+        langToggle.addEventListener("click", function () {
+          currentLanguage = currentLanguage === "fr" ? "en" : "fr";
+          localStorage.setItem("edtLanguage", currentLanguage);
+          applyLanguage();
+
+          if (currentScheduleData) {
+            displaySchedule(currentScheduleData, currentMondayDate);
+          }
+          updateSelectedWeekText(currentMondayDate);
+        });
+
+        function applyLanguage() {
+          document.documentElement.setAttribute("lang", currentLanguage);
+          langText.textContent = currentLanguage.toUpperCase();
+          document.title = translations[currentLanguage].title;
+          document.querySelector("h1").textContent = translations[currentLanguage].title;
+
+          if (welcomeTitle) welcomeTitle.textContent = translations[currentLanguage].welcome;
+          if (welcomeText) welcomeText.textContent = translations[currentLanguage].userIdPrompt;
+          if (newUserId) newUserId.placeholder = translations[currentLanguage].enterUserId;
+          if (saveUserId) saveUserId.textContent = translations[currentLanguage].save;
+
+          prevWeekBtn.innerHTML = `<i class="bi bi-arrow-left"></i> <span class="btn-text">${translations[currentLanguage].prevWeek}</span>`;
+          nextWeekBtn.innerHTML = `<span class="btn-text">${translations[currentLanguage].nextWeek}</span> <i class="bi bi-arrow-right"></i>`;
+          if (changeUserText) changeUserText.textContent = translations[currentLanguage].changeUser;
+          document.getElementById("refreshBtnText").textContent = translations[currentLanguage].refresh;
+          document.getElementById("datePickerBtnText").textContent = translations[currentLanguage].pickWeek;
+
+          weekPickerTitle.textContent = translations[currentLanguage].weekPickerTitle;
+          cancelWeekPicker.textContent = translations[currentLanguage].cancel;
+          selectWeek.textContent = translations[currentLanguage].select;
+
+          document.getElementById("discordLoginBtn").querySelector(".btn-text").textContent =
+            translations[currentLanguage].loginDiscord;
+          document.getElementById("settingsModalTitle").innerHTML = `<i class="bi bi-person-gear"></i> ${translations[currentLanguage].settingsTitle}`;
+          document.getElementById("dailyNotifLabel").textContent = translations[currentLanguage].dailyNotif;
+          document.getElementById("weeklyNotifLabel").textContent = translations[currentLanguage].weeklyNotif;
+          document.getElementById("preferImageLabel").textContent = translations[currentLanguage].preferImage;
+          document.getElementById("logoutBtn").innerHTML = `<i class="bi bi-box-arrow-right"></i> ${translations[currentLanguage].logout}`;
+
+          if (initialMessage) {
+            initialMessage.textContent = translations[currentLanguage].loading;
+          }
+          updateSelectedWeekText(currentMondayDate);
+        }
+
+        // Authentication & Settings check
+        async function checkAuth() {
+          try {
+            const resp = await fetch("/api/me");
+            const data = await resp.json();
+            if (data.logged_in && data.user) {
+              currentUser = data;
+              discordLoginBtn.style.display = "none";
+              userProfileBtn.style.display = "inline-flex";
+              userName.textContent = data.user.global_name || data.user.username;
+              userAvatar.src = data.user.avatar_url;
+
+              // Populate settings modal
+              settingsIcalUrl.value = data.settings.ical_url || "";
+              settingDailyNotif.checked = Boolean(data.settings.daily_notifications);
+              settingWeeklyNotif.checked = Boolean(data.settings.weekly_notifications);
+              settingPreferImage.checked = Boolean(data.settings.prefer_image);
+
+              // If iCal URL is configured in DB, load schedule immediately
+              if (data.settings.ical_url) {
+                userIdContainer.classList.add("hidden");
+                loadSchedule(currentMondayDate);
+                return;
+              }
+            } else {
+              currentUser = null;
+              discordLoginBtn.style.display = "inline-flex";
+              userProfileBtn.style.display = "none";
+            }
+          } catch (e) {
+            console.warn("Unable to check auth status:", e);
+          }
+
+          // Fallback to localStorage if not logged in or no DB url
+          const savedUrl = localStorage.getItem("edtIcalUrl");
+          if (savedUrl) {
+            userIdContainer.classList.add("hidden");
+            loadSchedule(currentMondayDate);
+          } else {
+            userIdContainer.classList.remove("hidden");
+            if (initialMessage) initialMessage.textContent = translations[currentLanguage].enterIdToShow;
+          }
+        }
+
+        // Settings Modal events
+        userProfileBtn.addEventListener("click", function () {
+          settingsSaveStatus.style.display = "none";
+          settingsModal.classList.add("show");
+        });
+
+        closeSettingsModal.addEventListener("click", function () {
+          settingsModal.classList.remove("show");
+        });
+
+        settingsModal.addEventListener("click", function (e) {
+          if (e.target === settingsModal) {
+            settingsModal.classList.remove("show");
+          }
+        });
+
+        saveSettingsBtn.addEventListener("click", async function () {
+          const icalUrlVal = settingsIcalUrl.value.trim();
+          const dailyVal = settingDailyNotif.checked;
+          const weeklyVal = settingWeeklyNotif.checked;
+          const preferImageVal = settingPreferImage.checked;
+
+          try {
+            saveSettingsBtn.disabled = true;
+            const resp = await fetch("/api/settings", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                ical_url: icalUrlVal,
+                daily_notifications: dailyVal,
+                weekly_notifications: weeklyVal,
+                prefer_image: preferImageVal,
+              }),
+            });
+
+            if (!resp.ok) {
+              const err = await resp.json();
+              alert(err.detail || "Erreur lors de la sauvegarde.");
+              return;
+            }
+
+            const data = await resp.json();
+            if (currentUser) {
+              currentUser.settings = data.settings;
+            }
+            if (icalUrlVal) {
+              localStorage.setItem("edtIcalUrl", icalUrlVal);
+            }
+            settingsSaveStatus.textContent = translations[currentLanguage].settingsSaved;
+            settingsSaveStatus.style.display = "block";
+
+            // Reload schedule with new settings
+            setTimeout(() => {
+              settingsModal.classList.remove("show");
+              loadSchedule(currentMondayDate, true);
+            }, 800);
+          } catch (e) {
+            alert("Erreur de communication avec le serveur.");
+          } finally {
+            saveSettingsBtn.disabled = false;
+          }
+        });
+
+        // Unauthenticated local URL save
+        saveUserId.addEventListener("click", function () {
+          const urlVal = newUserId.value.trim();
+          if (!urlVal || (!urlVal.startsWith("http://") && !urlVal.startsWith("https://") && !urlVal.startsWith("webcal://"))) {
+            alert("Veuillez entrer une URL valide débutant par https://");
+            return;
+          }
+          localStorage.setItem("edtIcalUrl", urlVal);
+          userIdContainer.classList.add("hidden");
+
+          // Also sync to DB if logged in
+          if (currentUser) {
+            settingsIcalUrl.value = urlVal;
+            saveSettingsBtn.click();
+          } else {
+            loadSchedule(currentMondayDate);
+          }
+        });
+
+        changeUserId.addEventListener("click", function () {
+          userIdContainer.classList.remove("hidden");
+          newUserId.value = localStorage.getItem("edtIcalUrl") || (currentUser && currentUser.settings ? currentUser.settings.ical_url : "") || "";
+          newUserId.focus();
+        });
+
+        // Week navigation buttons
+        prevWeekBtn.addEventListener("click", function () {
+          const prevMonday = new Date(currentMondayDate);
+          prevMonday.setDate(prevMonday.getDate() - 7);
+          currentMondayDate = prevMonday;
+          weekDate.value = formatDateForInput(currentMondayDate);
+          loadSchedule(currentMondayDate);
+        });
+
+        nextWeekBtn.addEventListener("click", function () {
+          const nextMonday = new Date(currentMondayDate);
+          nextMonday.setDate(nextMonday.getDate() + 7);
+          currentMondayDate = nextMonday;
+          weekDate.value = formatDateForInput(currentMondayDate);
+          loadSchedule(currentMondayDate);
+        });
+
+        document.getElementById("refreshBtn").addEventListener("click", function () {
+          loadSchedule(currentMondayDate, true);
+        });
+
+        // Keyboard arrow navigation
+        document.addEventListener("keydown", function (e) {
+          if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+          if (e.key === "ArrowLeft") {
+            e.preventDefault();
+            prevWeekBtn.click();
+          } else if (e.key === "ArrowRight") {
+            e.preventDefault();
+            nextWeekBtn.click();
+          }
+        });
+
+        // Week picker modal
+        datePickerBtn.addEventListener("click", function () {
+          pickerCurrentDate = new Date(currentMondayDate);
+          selectedWeekStart = null;
+          selectWeek.disabled = true;
+          generateCalendar();
+          weekPickerModal.classList.add("show");
+        });
+
+        function closePicker() {
+          weekPickerModal.classList.remove("show");
+        }
+        closeWeekPicker.addEventListener("click", closePicker);
+        cancelWeekPicker.addEventListener("click", closePicker);
+        weekPickerModal.addEventListener("click", (e) => {
+          if (e.target === weekPickerModal) closePicker();
+        });
+
+        selectWeek.addEventListener("click", function () {
+          if (selectedWeekStart) {
+            currentMondayDate = new Date(selectedWeekStart);
+            weekDate.value = formatDateForInput(currentMondayDate);
+            loadSchedule(currentMondayDate);
+            closePicker();
+          }
+        });
+
+        prevMonth.addEventListener("click", function () {
+          pickerCurrentDate.setMonth(pickerCurrentDate.getMonth() - 1);
+          generateCalendar();
+        });
+
+        nextMonth.addEventListener("click", function () {
+          pickerCurrentDate.setMonth(pickerCurrentDate.getMonth() + 1);
+          generateCalendar();
+        });
+
+        function generateCalendar() {
+          const locale = currentLanguage === "fr" ? "fr-FR" : "en-US";
+          currentMonthYear.textContent = pickerCurrentDate.toLocaleDateString(locale, {
+            month: "long",
+            year: "numeric",
+          });
+
+          calendarGrid.innerHTML = "";
+          const dayHeaders =
+            currentLanguage === "fr"
+              ? ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"]
+              : ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+          dayHeaders.forEach((day) => {
+            const header = document.createElement("div");
+            header.className = "calendar-header";
+            header.textContent = day;
+            calendarGrid.appendChild(header);
+          });
+
+          const firstDay = new Date(pickerCurrentDate.getFullYear(), pickerCurrentDate.getMonth(), 1);
+          const startDate = new Date(firstDay);
+          const dayOffset = (firstDay.getDay() === 0 ? 7 : firstDay.getDay()) - 1;
+          startDate.setDate(startDate.getDate() - dayOffset);
+
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+
+          for (let i = 0; i < 42; i++) {
+            const date = new Date(startDate);
+            date.setDate(startDate.getDate() + i);
+
+            const dayElement = document.createElement("div");
+            dayElement.className = "calendar-day";
+            dayElement.textContent = date.getDate();
+
+            if (date.getMonth() !== pickerCurrentDate.getMonth()) {
+              dayElement.classList.add("other-month");
+            }
+            if (date.getTime() === today.getTime()) {
+              dayElement.classList.add("today");
+            }
+
+            dayElement.addEventListener("click", function () {
+              selectWeekForDate(date);
+            });
+            calendarGrid.appendChild(dayElement);
+          }
+        }
+
+        function selectWeekForDate(date) {
+          const selectedDay = date.getDay() || 7;
+          const monday = new Date(date);
+          monday.setDate(date.getDate() - (selectedDay - 1));
+          monday.setHours(0, 0, 0, 0);
+
+          selectedWeekStart = monday;
+          selectWeek.disabled = false;
+
+          const allDays = calendarGrid.querySelectorAll(".calendar-day");
+          allDays.forEach((day) => day.classList.remove("selected-week"));
+
+          const startCalDate = new Date(pickerCurrentDate.getFullYear(), pickerCurrentDate.getMonth(), 1);
+          const offset = (startCalDate.getDay() === 0 ? 7 : startCalDate.getDay()) - 1;
+          startCalDate.setDate(startCalDate.getDate() - offset);
+
+          allDays.forEach((el, idx) => {
+            const currentElDate = new Date(startCalDate);
+            currentElDate.setDate(startCalDate.getDate() + idx);
+            const diffTime = currentElDate.getTime() - monday.getTime();
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            if (diffDays >= 0 && diffDays < 7) {
+              el.classList.add("selected-week");
+            }
+          });
+        }
+
+        function showLoading() {
+          scheduleContainer.innerHTML = `
+            <div class="spinner-container" style="grid-column: 1 / -1;">
+              <div class="spinner"></div>
+              <p>${translations[currentLanguage].loading}</p>
+            </div>`;
+        }
+
+        function showError(msg) {
+          scheduleContainer.innerHTML = `
+            <div style="grid-column: 1 / -1; text-align: center;">
+              <div class="alert alert-error" role="alert">
+                ${msg || translations[currentLanguage].errorFetching}
+              </div>
+            </div>`;
+        }
+
+        // Schedule Loader & Renderer
+        function loadSchedule(selectedDate, noCache = false) {
+          showLoading();
+          updateSelectedWeekText(selectedDate);
+
+          const formattedDate = formatDateForInput(selectedDate);
+          let targetUrl = "";
+
+          if (currentUser && currentUser.settings && currentUser.settings.ical_url) {
+            targetUrl = currentUser.settings.ical_url;
+          } else {
+            targetUrl = localStorage.getItem("edtIcalUrl") || "";
+          }
+
+          if (!targetUrl) {
+            userIdContainer.classList.remove("hidden");
+            showError(translations[currentLanguage].enterIdToShow);
+            return;
+          }
+
+          let endpoint = `/api/schedule/week?date=${formattedDate}&url=${encodeURIComponent(targetUrl)}`;
+          if (noCache) {
+            endpoint += `&_=${Date.now()}`;
+          }
+
+          fetch(endpoint)
+            .then((res) => (res.ok ? res.json() : res.json().then((err) => Promise.reject(err.detail || "Error"))))
+            .then((data) => {
+              currentScheduleData = data;
+              displaySchedule(data, selectedDate);
+            })
+            .catch((err) => {
+              console.error("Error loading schedule:", err);
+              showError(typeof err === "string" ? err : translations[currentLanguage].errorFetching);
+            });
+        }
+
+        function displaySchedule(data, selectedDate) {
+          scheduleContainer.innerHTML = "";
+          daysTabs.innerHTML = "";
+
+          const selectedDay = selectedDate.getDay() || 7;
+          const monday = new Date(selectedDate);
+          monday.setDate(monday.getDate() - (selectedDay - 1));
+
+          const days = translations[currentLanguage].days;
+          const datesOfWeek = [];
+          const visibleDays = [];
+
+          let minTime = 8 * 60;  // 08:00
+          let maxTime = 19 * 60; // 19:00
+
+          data.forEach((dayData) => {
+            dayData.forEach((item) => {
+              const start = timeToMinutes(item.start_time);
+              const end = timeToMinutes(item.end_time);
+              if (start !== null) minTime = Math.min(minTime, start);
+              if (end !== null) maxTime = Math.max(maxTime, end);
+            });
+          });
+
+          minTime = Math.floor(minTime / 60) * 60;
+          maxTime = Math.ceil(maxTime / 60) * 60;
+          if (maxTime - minTime < 540) maxTime = minTime + 540;
+
+          for (let i = 0; i < 5; i++) {
+            const date = new Date(monday);
+            date.setDate(monday.getDate() + i);
+            datesOfWeek.push(date);
+          }
+
+          days.forEach((day, index) => {
+            visibleDays.push(index);
+            const date = datesOfWeek[index];
+            const formattedDate = `${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}`;
+
+            const tab = document.createElement("button");
+            tab.className = "tab-item";
+            tab.dataset.dayIndex = index;
+            tab.innerText = `${day} ${formattedDate}`;
+
+            tab.addEventListener("click", function () {
+              document.querySelectorAll(".tab-item").forEach((t) => t.classList.remove("active"));
+              this.classList.add("active");
+              activeDayIndex = parseInt(this.dataset.dayIndex);
+              showActiveDayOnMobile();
+            });
+            daysTabs.appendChild(tab);
+          });
+
+          if (visibleDays.length > 0) {
+            if (!visibleDays.includes(activeDayIndex)) activeDayIndex = visibleDays[0];
+            const firstTab = daysTabs.querySelector(`.tab-item[data-day-index="${activeDayIndex}"]`);
+            if (firstTab) firstTab.classList.add("active");
+          }
+
+          days.forEach((day, index) => {
+            const date = datesOfWeek[index];
+            const locale = currentLanguage === "fr" ? "fr-FR" : "en-GB";
+            const formattedDate = date.toLocaleDateString(locale, { day: "2-digit", month: "2-digit", year: "numeric" });
+
+            const dayColumn = document.createElement("div");
+            dayColumn.className = "day-column";
+            dayColumn.dataset.dayIndex = index;
+
+            if (isMobileView && index === activeDayIndex) {
+              dayColumn.classList.add("active");
+            }
+
+            dayColumn.innerHTML = `
+              <div class="day-header">${day} ${formattedDate}</div>
+              <div id="day-${index}" class="day-schedule"></div>
+            `;
+            scheduleContainer.appendChild(dayColumn);
+            const daySchedule = dayColumn.querySelector(`#day-${index}`);
+            generateProportionalSchedule(data[index] || [], daySchedule, index, minTime, maxTime);
+          });
+        }
+
+        function calculatePixelsPerMinute(totalMinutes) {
+          const grid = document.getElementById("scheduleContainer");
+          if (!grid || grid.clientHeight === 0) return 1;
+          const approxHeaderHeight = 35;
+          const gapBuffer = 15;
+          const availableHeight = grid.clientHeight - approxHeaderHeight - gapBuffer;
+          return Math.max(0.1, availableHeight / totalMinutes);
+        }
+
+        function timeToMinutes(timeStr) {
+          if (!timeStr || timeStr === "??:??") return null;
+          const [hours, minutes] = timeStr.split(":").map(Number);
+          return hours * 60 + minutes;
+        }
+
+        function minutesToTime(minutes) {
+          const hours = Math.floor(minutes / 60);
+          const mins = minutes % 60;
+          return `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
+        }
+
+        function generateProportionalSchedule(dayData, container, dayIndex, dayStart, dayEnd) {
+          const sortedItems = [...dayData].sort((a, b) => {
+            if (a.start_time && b.start_time) return a.start_time.localeCompare(b.start_time);
+            return 0;
+          });
+
+          const totalMinutes = dayEnd - dayStart;
+          const pixelsPerMinute = calculatePixelsPerMinute(totalMinutes);
+          const totalDayHeight = totalMinutes * pixelsPerMinute;
+
+          if (sortedItems.length === 0) {
+            const emptyDayDiv = document.createElement("div");
+            emptyDayDiv.className = "full-day-empty";
+            emptyDayDiv.style.height = `${totalDayHeight}px`;
+            emptyDayDiv.textContent = translations[currentLanguage].noClass;
+            container.appendChild(emptyDayDiv);
+            return;
+          }
+
+          const timelineBlocks = [];
+          let currentTime = dayStart;
+
+          for (let i = 0; i < sortedItems.length; i++) {
+            const item = sortedItems[i];
+            const itemStart = timeToMinutes(item.start_time);
+            const itemEnd = timeToMinutes(item.end_time);
+
+            if (itemStart === null || itemEnd === null) continue;
+
+            if (currentTime < itemStart) {
+              timelineBlocks.push({ type: "empty", start: currentTime, end: itemStart, duration: itemStart - currentTime });
+            }
+
+            timelineBlocks.push({ type: "class", start: itemStart, end: itemEnd, duration: itemEnd - itemStart, data: item });
+            currentTime = itemEnd;
+          }
+
+          if (currentTime < dayEnd) {
+            timelineBlocks.push({ type: "empty", start: currentTime, end: dayEnd, duration: dayEnd - currentTime });
+          }
+
+          timelineBlocks.forEach((block) => {
+            const blockHeight = block.duration * pixelsPerMinute;
+
+            if (block.type === "empty") {
+              const emptyBlock = document.createElement("div");
+              emptyBlock.className = "empty-time-block";
+              emptyBlock.style.height = `${blockHeight}px`;
+              emptyBlock.style.minHeight = `${Math.max(window.innerWidth <= 768 ? 10 : 15, blockHeight)}px`;
+
+              if (block.duration >= 30) {
+                const startTimeFormatted = currentLanguage === "en" ? convertTo12HourFormat(minutesToTime(block.start)) : minutesToTime(block.start);
+                const endTimeFormatted = currentLanguage === "en" ? convertTo12HourFormat(minutesToTime(block.end)) : minutesToTime(block.end);
+                emptyBlock.textContent = `${startTimeFormatted} - ${endTimeFormatted}`;
+              }
+              container.appendChild(emptyBlock);
+            } else {
+              const scheduleItem = document.createElement("div");
+              scheduleItem.className = "schedule-item";
+              scheduleItem.style.height = `${blockHeight}px`;
+              scheduleItem.style.minHeight = `${Math.max(window.innerWidth <= 768 ? 20 : 30, blockHeight)}px`;
+
+              let startTime = block.data.start_time || "??:??";
+              let endTime = block.data.end_time || "??:??";
+
+              if (currentLanguage === "en") {
+                startTime = convertTo12HourFormat(startTime);
+                endTime = convertTo12HourFormat(endTime);
+              }
+
+              let teamsButton = "";
+              if (block.data.teams_link) {
+                teamsButton = `<a href="${block.data.teams_link}" target="_blank" rel="noopener" class="settings-badge" title="Lien Teams" style="text-decoration:none;"><i class="bi bi-microsoft-teams"></i> Teams</a>`;
+              }
+
+              scheduleItem.innerHTML = `
+                <div class="item-header">
+                  <span class="time">${startTime} - ${endTime}</span>
+                  <span class="room" title="${block.data.room || ''}">${block.data.room || translations[currentLanguage].room} ${teamsButton}</span>
+                </div>
+                <div class="name" title="${block.data.name || ''}">${block.data.name || translations[currentLanguage].untitled}</div>
+                <div class="teacher" title="${block.data.teacher || ''}">${block.data.teacher || translations[currentLanguage].teacher}</div>
+              `;
+              container.appendChild(scheduleItem);
+            }
+          });
+        }
+
+        function showActiveDayOnMobile() {
+          if (!isMobileView) return;
+          document.querySelectorAll(".day-column").forEach((column) => {
+            column.classList.remove("active");
+            if (parseInt(column.dataset.dayIndex) === activeDayIndex) {
+              column.classList.add("active");
+            }
+          });
+        }
+
+        function convertTo12HourFormat(time24) {
+          if (!time24 || time24 === "??:??") return time24;
+          const [hours, minutes] = time24.split(":");
+          const hour = parseInt(hours, 10);
+          if (isNaN(hour)) return time24;
+          const period = hour >= 12 ? "PM" : "AM";
+          const hour12 = hour % 12 || 12;
+          return `${hour12}:${minutes} ${period}`;
+        }
+
+        function getMondayOfCurrentWeek() {
+          const today = new Date();
+          const day = today.getDay();
+          const diff = today.getDate() - day + (day === 0 ? -6 : 1);
+          const monday = new Date(today);
+          monday.setDate(diff);
+          monday.setHours(0, 0, 0, 0);
+          return monday;
+        }
+
+        function formatDateForInput(date) {
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, "0");
+          const day = String(date.getDate()).padStart(2, "0");
+          return `${year}-${month}-${day}`;
+        }
+
+        function updateSelectedWeekText(mondayDate) {
+          const monday = new Date(mondayDate);
+          const friday = new Date(mondayDate);
+          friday.setDate(monday.getDate() + 4);
+
+          const options = { day: "numeric", month: "long", year: "numeric" };
+          const locale = currentLanguage === "fr" ? "fr-FR" : "en-US";
+          const mondayFormatted = monday.toLocaleDateString(locale, options);
+          const fridayFormatted = friday.toLocaleDateString(locale, options);
+
+          document.getElementById("selectedWeek").textContent =
+            `${translations[currentLanguage].weekOf} ${mondayFormatted} ${translations[currentLanguage].to} ${fridayFormatted}`;
+        }
+      });
+
+      // Register PWA Service Worker
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker
+            .register("/service-worker.js")
+            .then((registration) => {
+              console.log("Service Worker registered successfully:", registration);
+            })
+            .catch((err) => {
+              console.warn("Service Worker registration failed:", err);
+            });
+        });
+      }
+    </script>
+  </body>
+</html>

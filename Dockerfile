@@ -38,4 +38,6 @@ ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH="/app/src"
 
+EXPOSE 8080
+
 CMD ["python", "src/main.py"]

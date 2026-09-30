@@ -23,6 +23,19 @@ class Settings(BaseModel):
     sqlite_path: str = os.getenv("SQLITE_PATH", "bot_data.sqlite3")
     timezone: str = os.getenv("BOT_TIMEZONE", "Europe/Paris")
 
+    # Web & OAuth2 settings
+    web_host: str = os.getenv("WEB_HOST", "0.0.0.0")
+    web_port: int = int(os.getenv("WEB_PORT", "8080"))
+    web_base_url: str = os.getenv("WEB_BASE_URL", "http://localhost:8080")
+    discord_client_id: str = os.getenv("DISCORD_CLIENT_ID", "")
+    discord_client_secret: str = os.getenv("DISCORD_CLIENT_SECRET", "")
+    discord_redirect_uri: str = os.getenv(
+        "DISCORD_REDIRECT_URI", "http://localhost:8080/auth/callback"
+    )
+    session_secret: str = os.getenv(
+        "SESSION_SECRET", "epsi-bot-super-secret-key-change-in-production"
+    )
+
     @property
     def sqlite_database_url(self) -> str:
         """Return fallback SQLite connection string."""

@@ -118,6 +118,65 @@ async def update_user_notifications(
         return user
 
 
+async def get_or_create_user_profile(discord_id: int) -> UserProfile:
+    """Retrieve or create user profile by Discord ID."""
+    async with async_session_maker() as session:
+        statement = select(UserProfile).where(UserProfile.discord_id == discord_id)
+        result = await session.execute(statement)
+        user = result.scalar_one_or_none()
+        if not user:
+            user = UserProfile(discord_id=discord_id)
+            session.add(user)
+            await session.commit()
+            await session.refresh(user)
+        return user
+
+
+async def update_user_full_settings(
+    discord_id: int,
+    *,
+    ical_url: str | None = None,
+    daily_notifications: bool | None = None,
+    weekly_notifications: bool | None = None,
+    prefer_image: bool | None = None,
+) -> UserProfile:
+    """Update complete user profile settings, creating profile if not exists."""
+    async with async_session_maker() as session:
+        statement = select(UserProfile).where(UserProfile.discord_id == discord_id)
+        result = await session.execute(statement)
+        user = result.scalar_one_or_none()
+
+        now = datetime.now(UTC)
+        if not user:
+            user = UserProfile(
+                discord_id=discord_id,
+                ical_url=ical_url.strip() if (ical_url and ical_url.strip()) else None,
+                daily_notifications=daily_notifications
+                if daily_notifications is not None
+                else False,
+                weekly_notifications=weekly_notifications
+                if weekly_notifications is not None
+                else False,
+                prefer_image=prefer_image if prefer_image is not None else True,
+                updated_at=now,
+            )
+            session.add(user)
+        else:
+            if ical_url is not None:
+                user.ical_url = ical_url.strip() if ical_url.strip() else None
+            if daily_notifications is not None:
+                user.daily_notifications = daily_notifications
+            if weekly_notifications is not None:
+                user.weekly_notifications = weekly_notifications
+            if prefer_image is not None:
+                user.prefer_image = prefer_image
+            user.updated_at = now
+
+        await session.commit()
+        await session.refresh(user)
+        return user
+
+
 async def get_users_for_daily_notifications() -> Sequence[UserProfile]:
     """Fetch all users who have daily notifications enabled and a valid ical_url."""
     async with async_session_maker() as session:
