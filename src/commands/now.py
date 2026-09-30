@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 
 import discord
 from discord import app_commands
 
 from database import get_user_profile
+from models import CourseEvent
 from services.embed_builder import create_now_embed
+from services.holidays import get_public_holiday
 from services.i18n import resolve_user_language
-from services.ical_service import get_next_classes
+from services.ical_service import get_day_schedule, get_local_timezone, get_next_classes
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +55,33 @@ async def now_command(
 
     try:
         current_course, upcoming = await get_next_classes(target_url, limit=4)
+        show_work = profile.show_work_days if profile else True
+        tz = get_local_timezone()
+        now_dt = datetime.now(tz)
+        today = now_dt.date()
+
+        holiday = await get_public_holiday(today, lang=lang)
+        if holiday:
+            current_course = CourseEvent(
+                uid=f"holiday-{today.isoformat()}",
+                name=holiday,
+                start=datetime.combine(today, datetime.min.time(), tzinfo=tz),
+                end=datetime.combine(today, datetime.max.time(), tzinfo=tz),
+                room="Jour férié" if lang == "fr" else "Public Holiday",
+                event_type="holiday",
+            )
+        elif current_course is None and show_work and today.weekday() < 5:
+            today_classes = await get_day_schedule(target_url, today)
+            if not today_classes and 9 <= now_dt.hour < 17:
+                current_course = CourseEvent(
+                    uid=f"work-{today.isoformat()}",
+                    name="Entreprise" if lang == "fr" else "Company",
+                    start=datetime.combine(today, datetime.min.time().replace(hour=9), tzinfo=tz),
+                    end=datetime.combine(today, datetime.min.time().replace(hour=17), tzinfo=tz),
+                    room="Alternance" if lang == "fr" else "Apprenticeship",
+                    event_type="work",
+                )
+
         embed = create_now_embed(current_course, upcoming, lang=lang)
         await interaction.followup.send(embed=embed)
     except Exception as e:

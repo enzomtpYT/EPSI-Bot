@@ -15,6 +15,7 @@ from services.embed_builder import create_day_embed, create_week_embed
 from services.i18n import t
 from services.ical_service import get_day_schedule, get_week_schedule
 from services.image_renderer import render_day_image, render_week_image
+from services.schedule_enricher import enrich_schedule
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +37,14 @@ async def run_daily_notification_job(bot: discord.Client) -> None:
             if discord_user is None:
                 discord_user = await bot.fetch_user(user_profile.discord_id)
 
-            courses = await get_day_schedule(user_profile.ical_url, today)
+            raw_courses = await get_day_schedule(user_profile.ical_url, today)
+            courses = await enrich_schedule(
+                raw_courses,
+                today,
+                today,
+                show_work_days=user_profile.show_work_days,
+                lang=lang,
+            )
             content = t("cron_daily_title", lang=lang)
 
             if user_profile.prefer_image:
@@ -72,7 +80,15 @@ async def run_weekly_notification_job(bot: discord.Client) -> None:
             if discord_user is None:
                 discord_user = await bot.fetch_user(user_profile.discord_id)
 
-            courses = await get_week_schedule(user_profile.ical_url, start_of_week)
+            raw_courses = await get_week_schedule(user_profile.ical_url, start_of_week)
+            end_of_week = start_of_week + timedelta(days=6)
+            courses = await enrich_schedule(
+                raw_courses,
+                start_of_week,
+                end_of_week,
+                show_work_days=user_profile.show_work_days,
+                lang=lang,
+            )
             content = t("cron_weekly_title", lang=lang)
 
             if user_profile.prefer_image:

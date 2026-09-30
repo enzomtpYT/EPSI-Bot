@@ -156,6 +156,13 @@
                 <span class="slider"></span>
               </label>
             </div>
+            <div class="form-switch">
+              <span id="workDaysLabel">Jours en entreprise (Alternance)</span>
+              <label class="switch">
+                <input type="checkbox" id="settingWorkDays" checked />
+                <span class="slider"></span>
+              </label>
+            </div>
           </div>
           <div id="settingsSaveStatus" style="display: none;" class="alert alert-info">Modifications enregistrées !</div>
         </div>
@@ -200,6 +207,7 @@
         const settingDailyNotif = document.getElementById("settingDailyNotif");
         const settingWeeklyNotif = document.getElementById("settingWeeklyNotif");
         const settingPreferImage = document.getElementById("settingPreferImage");
+        const settingWorkDays = document.getElementById("settingWorkDays");
         const settingsSaveStatus = document.getElementById("settingsSaveStatus");
 
         // Week picker modal elements
@@ -245,6 +253,7 @@
             dailyNotif: "Rappels quotidiens (06h00)",
             weeklyNotif: "Rappels hebdomadaires (Lundi 06h00)",
             preferImage: "Format d'affichage Discord (Image)",
+            workDays: "Jours en entreprise (Alternance)",
             botLanguage: "Langue du bot Discord",
             logout: "Déconnexion",
           },
@@ -278,6 +287,7 @@
             dailyNotif: "Daily reminders (06:00)",
             weeklyNotif: "Weekly reminders (Mon 06:00)",
             preferImage: "Discord display format (Image)",
+            workDays: "Company work days (Apprenticeship)",
             botLanguage: "Discord Bot Language",
             logout: "Log out",
           },
@@ -398,6 +408,9 @@
           document.getElementById("dailyNotifLabel").textContent = translations[currentLanguage].dailyNotif;
           document.getElementById("weeklyNotifLabel").textContent = translations[currentLanguage].weeklyNotif;
           document.getElementById("preferImageLabel").textContent = translations[currentLanguage].preferImage;
+          if (document.getElementById("workDaysLabel")) {
+            document.getElementById("workDaysLabel").textContent = translations[currentLanguage].workDays;
+          }
           if (document.getElementById("settingLangLabel")) {
             document.getElementById("settingLangLabel").textContent = translations[currentLanguage].botLanguage;
           }
@@ -426,6 +439,7 @@
               settingDailyNotif.checked = Boolean(data.settings.daily_notifications);
               settingWeeklyNotif.checked = Boolean(data.settings.weekly_notifications);
               settingPreferImage.checked = Boolean(data.settings.prefer_image);
+              settingWorkDays.checked = data.settings.show_work_days !== false;
 
               // Apply saved language from user profile if present
               if (data.settings.language) {
@@ -446,6 +460,7 @@
               currentUser = null;
               discordLoginBtn.style.display = "inline-flex";
               userProfileBtn.style.display = "none";
+              settingWorkDays.checked = localStorage.getItem("edtShowWorkDays") !== "false";
             }
           } catch (e) {
             console.warn("Unable to check auth status:", e);
@@ -483,6 +498,7 @@
           const dailyVal = settingDailyNotif.checked;
           const weeklyVal = settingWeeklyNotif.checked;
           const preferImageVal = settingPreferImage.checked;
+          const workDaysVal = settingWorkDays.checked;
           const langVal = document.getElementById("settingLanguage").value;
 
           try {
@@ -496,6 +512,7 @@
                 weekly_notifications: weeklyVal,
                 prefer_image: preferImageVal,
                 language: langVal,
+                show_work_days: workDaysVal,
               }),
             });
 
@@ -512,6 +529,7 @@
             if (icalUrlVal) {
               localStorage.setItem("edtIcalUrl", icalUrlVal);
             }
+            localStorage.setItem("edtShowWorkDays", workDaysVal);
 
             if (langVal !== currentLanguage) {
               currentLanguage = langVal;
@@ -743,7 +761,12 @@
             return;
           }
 
-          let endpoint = `/api/schedule/week?date=${formattedDate}&url=${encodeURIComponent(targetUrl)}`;
+          const showWorkDaysVal =
+            currentUser && currentUser.settings && typeof currentUser.settings.show_work_days === "boolean"
+              ? currentUser.settings.show_work_days
+              : localStorage.getItem("edtShowWorkDays") !== "false";
+
+          let endpoint = `/api/schedule/week?date=${formattedDate}&url=${encodeURIComponent(targetUrl)}&work_days=${showWorkDaysVal}&lang=${currentLanguage}`;
           if (noCache) {
             endpoint += `&_=${Date.now()}`;
           }
@@ -921,7 +944,16 @@
               container.appendChild(emptyBlock);
             } else {
               const scheduleItem = document.createElement("div");
-              scheduleItem.className = "schedule-item";
+              let itemClass = "schedule-item";
+              let typeIcon = "";
+              if (block.data.event_type === "holiday") {
+                itemClass += " holiday-item";
+                typeIcon = "🎉 ";
+              } else if (block.data.event_type === "work") {
+                itemClass += " work-item";
+                typeIcon = "💼 ";
+              }
+              scheduleItem.className = itemClass;
               scheduleItem.style.height = `${blockHeight}px`;
               scheduleItem.style.minHeight = `${Math.max(window.innerWidth <= 768 ? 20 : 30, blockHeight)}px`;
 
@@ -938,13 +970,18 @@
                 teamsButton = `<a href="${block.data.teams_link}" target="_blank" rel="noopener" class="settings-badge" title="Lien Teams" style="text-decoration:none;"><i class="bi bi-microsoft-teams"></i> Teams</a>`;
               }
 
+              const teacherHtml =
+                block.data.event_type === "holiday" || block.data.event_type === "work"
+                  ? ""
+                  : `<div class="teacher" title="${block.data.teacher || ''}">${block.data.teacher || translations[currentLanguage].teacher}</div>`;
+
               scheduleItem.innerHTML = `
                 <div class="item-header">
                   <span class="time">${startTime} - ${endTime}</span>
                   <span class="room" title="${block.data.room || ''}">${block.data.room || translations[currentLanguage].room} ${teamsButton}</span>
                 </div>
-                <div class="name" title="${block.data.name || ''}">${block.data.name || translations[currentLanguage].untitled}</div>
-                <div class="teacher" title="${block.data.teacher || ''}">${block.data.teacher || translations[currentLanguage].teacher}</div>
+                <div class="name" title="${block.data.name || ''}">${typeIcon}${block.data.name || translations[currentLanguage].untitled}</div>
+                ${teacherHtml}
               `;
               container.appendChild(scheduleItem);
             }

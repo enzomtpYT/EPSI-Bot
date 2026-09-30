@@ -40,10 +40,21 @@ async def init_db() -> None:
                         "ALTER TABLE users ADD COLUMN IF NOT EXISTS language VARCHAR(10) DEFAULT 'fr';"
                     )
                 )
+                await conn.execute(
+                    text(
+                        "ALTER TABLE users ADD COLUMN IF NOT EXISTS show_work_days BOOLEAN DEFAULT TRUE;"
+                    )
+                )
             except Exception:
                 try:
                     await conn.execute(
                         text("ALTER TABLE users ADD COLUMN language VARCHAR(10) DEFAULT 'fr';")
+                    )
+                except Exception:
+                    pass
+                try:
+                    await conn.execute(
+                        text("ALTER TABLE users ADD COLUMN show_work_days BOOLEAN DEFAULT 1;")
                     )
                 except Exception:
                     pass
@@ -59,6 +70,12 @@ async def init_db() -> None:
                 try:
                     await conn.execute(
                         text("ALTER TABLE users ADD COLUMN language VARCHAR(10) DEFAULT 'fr';")
+                    )
+                except Exception:
+                    pass
+                try:
+                    await conn.execute(
+                        text("ALTER TABLE users ADD COLUMN show_work_days BOOLEAN DEFAULT 1;")
                     )
                 except Exception:
                     pass
@@ -116,6 +133,7 @@ async def update_user_notifications(
     weekly: bool | None = None,
     prefer_image: bool | None = None,
     language: str | None = None,
+    show_work_days: bool | None = None,
 ) -> UserProfile | None:
     """Update notification preferences for a user."""
     async with async_session_maker() as session:
@@ -134,6 +152,8 @@ async def update_user_notifications(
             user.prefer_image = prefer_image
         if language is not None:
             user.language = language
+        if show_work_days is not None:
+            user.show_work_days = show_work_days
 
         user.updated_at = datetime.now(UTC)
         await session.commit()
@@ -163,6 +183,7 @@ async def update_user_full_settings(
     weekly_notifications: bool | None = None,
     prefer_image: bool | None = None,
     language: str | None = None,
+    show_work_days: bool | None = None,
 ) -> UserProfile:
     """Update complete user profile settings, creating profile if not exists."""
     async with async_session_maker() as session:
@@ -183,6 +204,7 @@ async def update_user_full_settings(
                 else False,
                 prefer_image=prefer_image if prefer_image is not None else True,
                 language=language if language is not None else "fr",
+                show_work_days=show_work_days if show_work_days is not None else True,
                 updated_at=now,
             )
             session.add(user)
@@ -197,6 +219,8 @@ async def update_user_full_settings(
                 user.prefer_image = prefer_image
             if language is not None:
                 user.language = language
+            if show_work_days is not None:
+                user.show_work_days = show_work_days
             user.updated_at = now
 
         await session.commit()

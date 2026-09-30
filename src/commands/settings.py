@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
     unregister="Supprimer votre compte et données enregistrées / Delete registered data",
     daily="Activer/Désactiver le rappel quotidien à 06:00 / Daily reminder toggle",
     weekly="Activer/Désactiver le rappel hebdomadaire chaque lundi à 06:00 / Weekly reminder toggle",
+    work_days="Afficher les jours en entreprise (Alternance) / Show company work days",
     default_format="Format d'affichage préféré par défaut / Default display format",
     language="Langue du bot / Bot language (Français / English)",
 )
@@ -37,6 +38,10 @@ logger = logging.getLogger(__name__)
         app_commands.Choice(name="Désactiver / Disable", value="Désactiver"),
     ],
     weekly=[
+        app_commands.Choice(name="Activer / Enable", value="Activer"),
+        app_commands.Choice(name="Désactiver / Disable", value="Désactiver"),
+    ],
+    work_days=[
         app_commands.Choice(name="Activer / Enable", value="Activer"),
         app_commands.Choice(name="Désactiver / Disable", value="Désactiver"),
     ],
@@ -60,6 +65,7 @@ async def settings_command(
     unregister: str | None = None,
     daily: str | None = None,
     weekly: str | None = None,
+    work_days: str | None = None,
     default_format: str | None = None,
     language: str | None = None,
 ) -> None:
@@ -168,6 +174,18 @@ async def settings_command(
             t("settings_weekly_updated", lang=lang, status=t(status_key, lang=lang))
         )
 
+    if work_days is not None:
+        if not current_profile:
+            await interaction.followup.send(
+                t("settings_must_register", lang=lang),
+                ephemeral=True,
+            )
+            return
+        is_work = work_days == "Activer"
+        await update_user_notifications(user_id, show_work_days=is_work)
+        status_key = "status_activated" if is_work else "status_deactivated"
+        updates_made.append(t("settings_work_updated", lang=lang, status=t(status_key, lang=lang)))
+
     if default_format is not None:
         if not current_profile:
             await interaction.followup.send(
@@ -213,6 +231,12 @@ async def settings_command(
             lang=lang,
         )
         embed.add_field(name=t("settings_weekly_field", lang=lang), value=weekly_val, inline=True)
+
+        work_val = t(
+            "settings_enabled" if current_profile.show_work_days else "settings_disabled",
+            lang=lang,
+        )
+        embed.add_field(name=t("settings_work_field", lang=lang), value=work_val, inline=True)
 
         format_val = t(
             "settings_format_img" if current_profile.prefer_image else "settings_format_txt",

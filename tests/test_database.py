@@ -36,25 +36,29 @@ async def test_database_crud_lifecycle() -> None:
     assert created.ical_url == ical_url
     assert created.daily_notifications is False
     assert created.prefer_image is True
+    assert created.show_work_days is True
 
     # 3. Retrieve user
     fetched = await get_user_profile(test_user_id)
     assert fetched is not None
     assert fetched.discord_id == test_user_id
+    assert fetched.show_work_days is True
 
-    # 4. Update notification preferences and language
+    # 4. Update notification preferences, language, and show_work_days
     updated = await update_user_notifications(
         test_user_id,
         daily=True,
         weekly=True,
         prefer_image=False,
         language="en",
+        show_work_days=False,
     )
     assert updated is not None
     assert updated.daily_notifications is True
     assert updated.weekly_notifications is True
     assert updated.prefer_image is False
     assert updated.language == "en"
+    assert updated.show_work_days is False
 
     # 5. Check notification subscriber queries
     daily_users = await get_users_for_daily_notifications()

@@ -27,6 +27,7 @@ class CourseEvent(BaseModel):
     group: str | None = None
     description: str | None = None
     teams_link: str | None = None
+    event_type: str = "course"  # "course", "holiday", "work"
 
     @property
     def event_date(self) -> date:
@@ -60,6 +61,9 @@ class UserProfile(SQLModel, table=True):
         default=True, description="Render schedules as image cards by default"
     )
     language: str = SQLField(default="fr", description="Language preference ('fr' or 'en')")
+    show_work_days: bool = SQLField(
+        default=True, description="Display synthetic work/alternance on class-free weekdays"
+    )
     updated_at: datetime = SQLField(
         default_factory=get_utc_now, description="Last update timestamp"
     )

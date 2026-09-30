@@ -259,6 +259,24 @@ body {
   filter: brightness(1.1);
 }
 
+.schedule-item.holiday-item {
+  background-color: rgba(217, 119, 6, 0.15);
+  border-left: 4px solid #f59e0b;
+}
+.dark-mode .schedule-item.holiday-item {
+  background-color: rgba(217, 119, 6, 0.25);
+  border-left: 4px solid #fbbf24;
+}
+
+.schedule-item.work-item {
+  background-color: rgba(15, 118, 110, 0.15);
+  border-left: 4px solid #14b8a6;
+}
+.dark-mode .schedule-item.work-item {
+  background-color: rgba(15, 118, 110, 0.25);
+  border-left: 4px solid #2dd4bf;
+}
+
 /* Header Row: Time + Room */
 .item-header {
   display: flex;

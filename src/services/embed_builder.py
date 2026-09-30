@@ -55,8 +55,15 @@ def create_day_embed(
             teams_text = t("teams_link_text", lang=lang, url=course.teams_link)
             fields.append(f"🔗 {teams_text}")
 
+        if course.event_type == "holiday":
+            prefix = "🎉"
+        elif course.event_type == "work":
+            prefix = "💼"
+        else:
+            prefix = "📘"
+
         embed.add_field(
-            name=f"📘 {course.name}",
+            name=f"{prefix} {course.name}",
             value="\n".join(fields),
             inline=False,
         )
@@ -100,13 +107,18 @@ def create_week_embed(
     for d, day_courses in sorted(courses_by_date.items()):
         day_lines = []
         for c in day_courses:
-            meta_items = []
-            if c.teacher:
-                meta_items.append(c.teacher)
-            if c.room:
-                meta_items.append(f"`{c.room}`")
-            meta_info = f" ({', '.join(meta_items)})" if meta_items else ""
-            day_lines.append(f"`{c.time_range_str}` **{c.name}**{meta_info}")
+            if c.event_type == "holiday":
+                day_lines.append(f"🎉 **{c.name}** ({c.room})")
+            elif c.event_type == "work":
+                day_lines.append(f"💼 `{c.time_range_str}` **{c.name}** ({c.room})")
+            else:
+                meta_items = []
+                if c.teacher:
+                    meta_items.append(c.teacher)
+                if c.room:
+                    meta_items.append(f"`{c.room}`")
+                meta_info = f" ({', '.join(meta_items)})" if meta_items else ""
+                day_lines.append(f"`{c.time_range_str}` **{c.name}**{meta_info}")
 
         embed.add_field(
             name=format_date_localized(d, lang=lang),
@@ -124,9 +136,18 @@ def create_now_embed(
     lang: str = "fr",
 ) -> discord.Embed:
     """Create an embed showing current running course and upcoming courses."""
+    color = discord.Color.blue()
+    if current_course:
+        if current_course.event_type == "holiday":
+            color = discord.Color.gold()
+        elif current_course.event_type == "work":
+            color = discord.Color.teal()
+        else:
+            color = discord.Color.green()
+
     embed = discord.Embed(
         title=t("now_title", lang=lang),
-        color=discord.Color.green() if current_course else discord.Color.blue(),
+        color=color,
         timestamp=datetime.now(UTC),
     )
 
@@ -134,19 +155,32 @@ def create_now_embed(
     teacher_label = t("teacher", lang=lang)
 
     if current_course:
-        details = [
-            f"⏰ **{t('time', lang=lang)} :** {current_course.time_range_str}",
-            f"📍 **{room_label} :** `{current_course.room or ('Not specified' if lang == 'en' else 'Non spécifiée')}`",
-            f"👤 **{teacher_label} :** {current_course.teacher or ('Not specified' if lang == 'en' else 'Non spécifié')}",
-        ]
-        if current_course.teams_link:
-            details.append(f"🔗 {t('teams_link_text', lang=lang, url=current_course.teams_link)}")
+        if current_course.event_type == "holiday":
+            current_header = f"🎉 {current_course.name}"
+            details = [f"📍 **{room_label} :** `{current_course.room}`"]
+        elif current_course.event_type == "work":
+            current_header = f"💼 {current_course.name}"
+            details = [
+                f"⏰ **{t('time', lang=lang)} :** {current_course.time_range_str}",
+                f"📍 **{room_label} :** `{current_course.room}`",
+            ]
+        else:
+            details = [
+                f"⏰ **{t('time', lang=lang)} :** {current_course.time_range_str}",
+                f"📍 **{room_label} :** `{current_course.room or ('Not specified' if lang == 'en' else 'Non spécifiée')}`",
+                f"👤 **{teacher_label} :** {current_course.teacher or ('Not specified' if lang == 'en' else 'Non spécifié')}",
+            ]
+            if current_course.teams_link:
+                details.append(
+                    f"🔗 {t('teams_link_text', lang=lang, url=current_course.teams_link)}"
+                )
 
-        current_header = (
-            f"🟢 Currently in progress: {current_course.name}"
-            if lang == "en"
-            else f"🟢 En cours actuellement : {current_course.name}"
-        )
+            current_header = (
+                f"🟢 Currently in progress: {current_course.name}"
+                if lang == "en"
+                else f"🟢 En cours actuellement : {current_course.name}"
+            )
+
         embed.add_field(
             name=current_header,
             value="\n".join(details),

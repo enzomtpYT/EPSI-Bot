@@ -13,6 +13,7 @@ from services.embed_builder import create_day_embed
 from services.i18n import resolve_user_language
 from services.ical_service import get_day_schedule
 from services.image_renderer import render_day_image
+from services.schedule_enricher import enrich_schedule
 from ui.views import DayScheduleView
 
 logger = logging.getLogger(__name__)
@@ -75,13 +76,22 @@ async def day_command(
             return
 
     try:
-        courses = await get_day_schedule(target_url, target_date)
+        raw_courses = await get_day_schedule(target_url, target_date)
+        show_work = profile.show_work_days if profile else True
+        courses = await enrich_schedule(
+            raw_courses,
+            target_date,
+            target_date,
+            show_work_days=show_work,
+            lang=lang,
+        )
         view = DayScheduleView(
             ical_url=target_url,
             current_date=target_date,
             show_image=prefer_image,
             user_id=interaction.user.id,
             lang=lang,
+            show_work_days=show_work,
         )
 
         if prefer_image:

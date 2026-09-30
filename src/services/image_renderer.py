@@ -81,11 +81,20 @@ def get_font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont | ImageFon
     return ImageFont.load_default(size=size)
 
 
-def get_course_colors(course_name: str) -> tuple[tuple[int, int, int], tuple[int, int, int]]:
+def get_course_colors(
+    course_name: str, event_type: str = "course"
+) -> tuple[tuple[int, int, int], tuple[int, int, int]]:
     """Generate consistent (card_background, accent_badge) colors for a course.
 
     Matches Hyperplanning pastel card style with soft tint and vibrant accent.
     """
+    if event_type == "holiday":
+        # Warm amber / gold
+        return (60, 40, 15), (245, 158, 11)
+    if event_type == "work":
+        # Professional teal / cyan
+        return (15, 55, 60), (20, 184, 166)
+
     seed_val = sum(ord(c) for c in course_name)
     hue = (seed_val % 360) / 360.0
 
@@ -155,7 +164,7 @@ def render_day_image(
         curr_y = header_height + 15
         for course in courses:
             card_rect = [card_margin, curr_y, width - card_margin, curr_y + card_height]
-            card_bg, accent = get_course_colors(course.name)
+            card_bg, accent = get_course_colors(course.name, course.event_type)
             draw.rounded_rectangle(card_rect, radius=12, fill=card_bg, outline=COLOR_CARD_BORDER)
 
             # Left accent badge
@@ -328,7 +337,7 @@ def render_week_image(
             card_y2 = grid_top + int((clamped_end - start_hour) * hour_height) - 2
             card_h = card_y2 - card_y1
 
-            card_bg, accent = get_course_colors(course.name)
+            card_bg, accent = get_course_colors(course.name, course.event_type)
             card_rect = [col_x + 4, card_y1, col_x + day_width - 4, card_y2]
 
             # Render card background with rounded corners and border

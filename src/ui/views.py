@@ -9,6 +9,7 @@ import discord
 from services.embed_builder import create_day_embed, create_week_embed
 from services.ical_service import get_day_schedule, get_week_schedule
 from services.image_renderer import render_day_image, render_week_image
+from services.schedule_enricher import enrich_schedule
 
 
 class DayScheduleView(discord.ui.View):
@@ -21,6 +22,7 @@ class DayScheduleView(discord.ui.View):
         show_image: bool = True,
         user_id: int | None = None,
         lang: str = "fr",
+        show_work_days: bool = True,
     ):
         super().__init__(timeout=180)
         self.ical_url = ical_url
@@ -28,6 +30,7 @@ class DayScheduleView(discord.ui.View):
         self.show_image = show_image
         self.user_id = user_id
         self.lang = lang
+        self.show_work_days = show_work_days
 
         # Update button labels according to language
         self.prev_day.label = "◀ " + ("Previous Day" if lang == "en" else "Jour précédent")
@@ -37,7 +40,14 @@ class DayScheduleView(discord.ui.View):
 
     async def _update_message(self, interaction: discord.Interaction) -> None:
         await interaction.response.defer()
-        courses = await get_day_schedule(self.ical_url, self.current_date)
+        raw_courses = await get_day_schedule(self.ical_url, self.current_date)
+        courses = await enrich_schedule(
+            raw_courses,
+            self.current_date,
+            self.current_date,
+            show_work_days=self.show_work_days,
+            lang=self.lang,
+        )
 
         if self.show_image:
             img_buf = render_day_image(self.current_date, courses, lang=self.lang)
@@ -84,6 +94,7 @@ class WeekScheduleView(discord.ui.View):
         show_image: bool = True,
         user_id: int | None = None,
         lang: str = "fr",
+        show_work_days: bool = True,
     ):
         super().__init__(timeout=180)
         self.ical_url = ical_url
@@ -91,6 +102,7 @@ class WeekScheduleView(discord.ui.View):
         self.show_image = show_image
         self.user_id = user_id
         self.lang = lang
+        self.show_work_days = show_work_days
 
         # Update button labels according to language
         self.prev_week.label = "◀ " + ("Previous Week" if lang == "en" else "Semaine précédente")
@@ -100,7 +112,15 @@ class WeekScheduleView(discord.ui.View):
 
     async def _update_message(self, interaction: discord.Interaction) -> None:
         await interaction.response.defer()
-        courses = await get_week_schedule(self.ical_url, self.start_of_week)
+        raw_courses = await get_week_schedule(self.ical_url, self.start_of_week)
+        end_of_week = self.start_of_week + timedelta(days=6)
+        courses = await enrich_schedule(
+            raw_courses,
+            self.start_of_week,
+            end_of_week,
+            show_work_days=self.show_work_days,
+            lang=self.lang,
+        )
 
         if self.show_image:
             img_buf = render_week_image(self.start_of_week, courses, lang=self.lang)

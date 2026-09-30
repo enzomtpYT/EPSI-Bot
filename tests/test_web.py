@@ -92,6 +92,19 @@ async def test_api_schedule_week_success():
             assert len(data[0]) == 1  # Monday has 1 event
             assert data[0][0]["name"] == "Gouvernance de la continuité"
             assert data[0][0]["teacher"] == "FERNANDEZ VALLE"
+            assert data[0][0]["event_type"] == "course"
+            # Tuesday has synthetic Entreprise event by default
+            assert len(data[1]) == 1
+            assert data[1][0]["name"] == "Entreprise"
+            assert data[1][0]["event_type"] == "work"
+
+            # With work_days=false, Tuesday should be empty
+            resp_no_work = await client.get(
+                "/api/schedule/week?date=2026-10-12&url=https://example.com/cal.ics&work_days=false"
+            )
+            assert resp_no_work.status_code == 200
+            data_no_work = resp_no_work.json()
+            assert len(data_no_work[1]) == 0
 
 
 @pytest.mark.asyncio
@@ -164,6 +177,7 @@ async def test_auth_callback_and_settings_flow():
                     "weekly_notifications": True,
                     "prefer_image": False,
                     "language": "en",
+                    "show_work_days": False,
                 },
             )
             assert resp_settings.status_code == 200
@@ -173,10 +187,12 @@ async def test_auth_callback_and_settings_flow():
             assert settings_data["settings"]["weekly_notifications"] is True
             assert settings_data["settings"]["prefer_image"] is False
             assert settings_data["settings"]["language"] == "en"
+            assert settings_data["settings"]["show_work_days"] is False
 
-            # Check /api/me reflects new language
+            # Check /api/me reflects new language and show_work_days
             resp_me_after = await client.get("/api/me")
             assert resp_me_after.json()["settings"]["language"] == "en"
+            assert resp_me_after.json()["settings"]["show_work_days"] is False
 
             # 4. Check schedule without url param (uses DB ical_url)
             with patch("web.routes_api.get_week_schedule", new=AsyncMock(return_value=[])):
