@@ -1,0 +1,15 @@
+[project]
+name = "epsi-bot"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "aiocron==2.1",
+    "aiohttp==3.9.1",
+    "discord-py==2.5.2",
+    "peewee==3.18.2",
+    "psycopg2-binary==2.9.11",
+    "pycairo==1.25.1",
+    "python-dotenv==1.0.0",
+]
