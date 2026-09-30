@@ -79,22 +79,22 @@ def test_localized_embed_creation():
     # Day embed
     embed_fr = create_day_embed(target_date, [course], lang="fr")
     embed_en = create_day_embed(target_date, [course], lang="en")
-    assert "cours au programme" in embed_fr.description
-    assert "classes scheduled" in embed_en.description
-    assert "Salle:" in embed_fr.fields[0].value
-    assert "Room:" in embed_en.fields[0].value
+    assert "cours au programme" in (embed_fr.description or "")
+    assert "classes scheduled" in (embed_en.description or "")
+    assert "Salle:" in (embed_fr.fields[0].value or "")
+    assert "Room:" in (embed_en.fields[0].value or "")
 
     # Week embed
     week_fr = create_week_embed(target_date, [course], lang="fr")
     week_en = create_week_embed(target_date, [course], lang="en")
-    assert "Semaine du" in week_fr.description
-    assert "Week of" in week_en.description
+    assert "Semaine du" in (week_fr.description or "")
+    assert "Week of" in (week_en.description or "")
 
     # Now embed
     now_fr = create_now_embed(course, [], lang="fr")
     now_en = create_now_embed(course, [], lang="en")
-    assert "En cours actuellement" in now_fr.fields[0].name
-    assert "Currently in progress" in now_en.fields[0].name
+    assert "En cours actuellement" in (now_fr.fields[0].name or "")
+    assert "Currently in progress" in (now_en.fields[0].name or "")
 
 
 def test_localized_image_rendering():

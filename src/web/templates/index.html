@@ -247,6 +247,8 @@
             room: "Salle non spécifiée",
             teacher: "Enseignant non spécifié",
             untitled: "Sans titre",
+            breakLabel: "Pause",
+            enjoyDay: "Profitez de votre journée !",
             loginDiscord: "Connexion",
             settingsTitle: "Paramètres du compte",
             settingsSaved: "Paramètres enregistrés !",
@@ -277,6 +279,8 @@
             enterIdToShow: "Please enter your iCal URL to display the schedule",
             errorFetching: "Error fetching schedule data. Please check your iCal URL.",
             noClass: "No classes scheduled",
+            breakLabel: "Break",
+            enjoyDay: "Enjoy your day off!",
             days: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
             room: "Room not specified",
             teacher: "Teacher not specified",
@@ -312,16 +316,61 @@
         // Check authentication state from server
         await checkAuth();
 
-        // Responsive resize listener
+        // Responsive resize listener (debounced to recalculate heights on desktop & mobile)
+        let resizeTimeout = null;
         window.addEventListener("resize", function () {
-          const newIsMobileView = window.innerWidth < 768;
-          if (newIsMobileView !== isMobileView) {
-            isMobileView = newIsMobileView;
+          clearTimeout(resizeTimeout);
+          resizeTimeout = setTimeout(() => {
+            isMobileView = window.innerWidth < 768;
             if (currentScheduleData) {
               displaySchedule(currentScheduleData, currentMondayDate);
             }
-          }
+          }, 80);
         });
+
+        // Touch swipe gestures for mobile day switching
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let touchStartTime = 0;
+
+        scheduleContainer.addEventListener(
+          "touchstart",
+          function (e) {
+            if (!isMobileView || e.touches.length !== 1) return;
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+            touchStartTime = Date.now();
+          },
+          { passive: true }
+        );
+
+        scheduleContainer.addEventListener(
+          "touchend",
+          function (e) {
+            if (!isMobileView || e.changedTouches.length !== 1) return;
+            const touchEndX = e.changedTouches[0].clientX;
+            const touchEndY = e.changedTouches[0].clientY;
+            const diffX = touchEndX - touchStartX;
+            const diffY = touchEndY - touchStartY;
+            const duration = Date.now() - touchStartTime;
+
+            // Detect horizontal swipe: diffX significant, diffY small, duration reasonable
+            if (Math.abs(diffX) > 45 && Math.abs(diffY) < 70 && duration < 600) {
+              if (diffX < 0) {
+                // Swipe left -> next day
+                if (activeDayIndex < 4) {
+                  setActiveDay(activeDayIndex + 1);
+                }
+              } else {
+                // Swipe right -> previous day
+                if (activeDayIndex > 0) {
+                  setActiveDay(activeDayIndex - 1);
+                }
+              }
+            }
+          },
+          { passive: true }
+        );
 
         // Theme Handling
         function applyTheme() {
@@ -828,18 +877,14 @@
             tab.innerText = `${day} ${formattedDate}`;
 
             tab.addEventListener("click", function () {
-              document.querySelectorAll(".tab-item").forEach((t) => t.classList.remove("active"));
-              this.classList.add("active");
-              activeDayIndex = parseInt(this.dataset.dayIndex);
-              showActiveDayOnMobile();
+              setActiveDay(parseInt(this.dataset.dayIndex));
             });
             daysTabs.appendChild(tab);
           });
 
           if (visibleDays.length > 0) {
             if (!visibleDays.includes(activeDayIndex)) activeDayIndex = visibleDays[0];
-            const firstTab = daysTabs.querySelector(`.tab-item[data-day-index="${activeDayIndex}"]`);
-            if (firstTab) firstTab.classList.add("active");
+            setActiveDay(activeDayIndex);
           }
 
           days.forEach((day, index) => {
@@ -861,8 +906,16 @@
             `;
             scheduleContainer.appendChild(dayColumn);
             const daySchedule = dayColumn.querySelector(`#day-${index}`);
-            generateProportionalSchedule(data[index] || [], daySchedule, index, minTime, maxTime);
+            if (isMobileView) {
+              generateMobileAgendaSchedule(data[index] || [], daySchedule, index);
+            } else {
+              generateProportionalSchedule(data[index] || [], daySchedule, index, minTime, maxTime);
+            }
           });
+
+          if (isMobileView) {
+            showActiveDayOnMobile();
+          }
         }
 
         function calculatePixelsPerMinute(totalMinutes) {
@@ -985,6 +1038,131 @@
               `;
               container.appendChild(scheduleItem);
             }
+          });
+        }
+
+        function setActiveDay(newIndex) {
+          activeDayIndex = Math.max(0, Math.min(4, newIndex));
+          document.querySelectorAll(".tab-item").forEach((t) => {
+            t.classList.toggle("active", parseInt(t.dataset.dayIndex) === activeDayIndex);
+          });
+          const activeTab = daysTabs.querySelector(`.tab-item[data-day-index="${activeDayIndex}"]`);
+          if (activeTab && activeTab.scrollIntoView) {
+            activeTab.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+          }
+          showActiveDayOnMobile();
+        }
+
+        function calculateDurationStr(startTime, endTime) {
+          const startMin = timeToMinutes(startTime);
+          const endMin = timeToMinutes(endTime);
+          if (startMin === null || endMin === null || endMin <= startMin) return "";
+          const diff = endMin - startMin;
+          const hours = Math.floor(diff / 60);
+          const mins = diff % 60;
+          if (hours > 0 && mins > 0) {
+            return `${hours}h${String(mins).padStart(2, "0")}`;
+          } else if (hours > 0) {
+            return `${hours}h`;
+          } else {
+            return `${mins}min`;
+          }
+        }
+
+        function generateMobileAgendaSchedule(dayData, container, dayIndex) {
+          const sortedItems = [...dayData].sort((a, b) => {
+            if (a.start_time && b.start_time) return a.start_time.localeCompare(b.start_time);
+            return 0;
+          });
+
+          if (sortedItems.length === 0) {
+            const emptyDiv = document.createElement("div");
+            emptyDiv.className = "mobile-empty-day";
+            emptyDiv.innerHTML = `
+              <div class="empty-icon"><i class="bi bi-calendar2-check"></i></div>
+              <div class="empty-title">${translations[currentLanguage].noClass}</div>
+              <div class="empty-subtitle">${translations[currentLanguage].enjoyDay}</div>
+            `;
+            container.appendChild(emptyDiv);
+            return;
+          }
+
+          let prevEndMin = null;
+
+          sortedItems.forEach((item) => {
+            const startMin = timeToMinutes(item.start_time);
+            const endMin = timeToMinutes(item.end_time);
+
+            // Insert break divider if there is a gap >= 20 mins between consecutive classes
+            if (prevEndMin !== null && startMin !== null && startMin - prevEndMin >= 20) {
+              const breakEl = document.createElement("div");
+              breakEl.className = "mobile-break-divider";
+              const breakStartStr = minutesToTime(prevEndMin);
+              const breakEndStr = minutesToTime(startMin);
+              const breakDurationStr = calculateDurationStr(breakStartStr, breakEndStr);
+              const breakStartFmt = currentLanguage === "en" ? convertTo12HourFormat(breakStartStr) : breakStartStr;
+              const breakEndFmt = currentLanguage === "en" ? convertTo12HourFormat(breakEndStr) : breakEndStr;
+              breakEl.innerHTML = `☕ ${translations[currentLanguage].breakLabel} (${breakStartFmt} - ${breakEndFmt}${breakDurationStr ? " • " + breakDurationStr : ""})`;
+              container.appendChild(breakEl);
+            }
+
+            if (endMin !== null) {
+              prevEndMin = endMin;
+            }
+
+            const card = document.createElement("div");
+            let cardClass = "mobile-agenda-card";
+            let typeIcon = '<i class="bi bi-clock"></i> ';
+            if (item.event_type === "holiday") {
+              cardClass += " holiday";
+              typeIcon = "🎉 ";
+            } else if (item.event_type === "work") {
+              cardClass += " work";
+              typeIcon = "💼 ";
+            }
+            card.className = cardClass;
+
+            let startTime = item.start_time || "??:??";
+            let endTime = item.end_time || "??:??";
+            if (currentLanguage === "en") {
+              startTime = convertTo12HourFormat(startTime);
+              endTime = convertTo12HourFormat(endTime);
+            }
+
+            const durationStr = calculateDurationStr(item.start_time, item.end_time);
+
+            let teamsBtn = "";
+            if (item.teams_link) {
+              teamsBtn = `<a href="${item.teams_link}" target="_blank" rel="noopener" class="mobile-teams-btn" title="Teams"><i class="bi bi-microsoft-teams"></i> Teams</a>`;
+            }
+
+            let roomPill = "";
+            if (item.room && item.event_type !== "holiday" && item.event_type !== "work") {
+              roomPill = `<span class="mobile-meta-pill" title="${item.room}"><i class="bi bi-geo-alt"></i> ${item.room}</span>`;
+            }
+
+            let teacherPill = "";
+            if (item.teacher && item.event_type !== "holiday" && item.event_type !== "work") {
+              teacherPill = `<span class="mobile-meta-pill" title="${item.teacher}"><i class="bi bi-person"></i> ${item.teacher}</span>`;
+            }
+
+            const itemName = item.name || translations[currentLanguage].untitled;
+
+            let metaHtml = "";
+            if (roomPill || teacherPill || teamsBtn) {
+              metaHtml = `<div class="mobile-card-meta">${roomPill}${teacherPill}${teamsBtn}</div>`;
+            }
+
+            card.innerHTML = `
+              <div class="mobile-card-top">
+                <span class="mobile-card-time">${typeIcon}${startTime} - ${endTime}</span>
+                ${durationStr ? `<span class="mobile-card-duration">${durationStr}</span>` : ""}
+              </div>
+              <div class="mobile-card-title">${itemName}</div>
+              ${metaHtml}
+            `;
+
+            container.appendChild(card);
           });
         }
 
