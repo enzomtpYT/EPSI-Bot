@@ -6,10 +6,15 @@ __pycache__/
 # Environment variables
 .env
 venv/
+.venv/
 
-# Logs
+# Logs & Databases
 *.log
 bot.log
-
-# User data
+*.sqlite3
+*.sqlite
 users.json
+
+# Tool caches
+.pytest_cache/
+.ruff_cache/

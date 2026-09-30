@@ -1,51 +1,41 @@
-# Use a multi-arch base image
-FROM python:3.11-slim AS builder
+# Multi-stage Dockerfile powered by uv
+FROM ghcr.io/astral-sh/uv:python3.11-bookworm-slim AS builder
 
 WORKDIR /app
 
-# Install build dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    gcc \
-    python3-dev \
-    pkg-config \
-    libcairo2-dev \
-    libffi-dev \
-    libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
+ENV UV_COMPILE_BYTECODE=1
+ENV UV_LINK_MODE=copy
 
-# Copy requirements and install dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+# Install dependencies using uv sync without dev packages
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-dev --no-install-project
 
-# Copy application code
+# Copy source code and install project
 COPY . .
+RUN uv sync --frozen --no-dev
 
-# Final stage
-FROM python:3.11-slim
+# Final runtime image
+FROM python:3.11-slim-bookworm
 
 WORKDIR /app
 
-# Install runtime dependencies (including libcairo2) and set timezone
+# Configure timezone to Europe/Paris
 RUN apt-get update && apt-get install -y --no-install-recommends \
     tzdata \
-    libcairo2 \
-    libpq5 \
     && rm -rf /var/lib/apt/lists/* \
     && ln -fs /usr/share/zoneinfo/Europe/Paris /etc/localtime \
     && echo "Europe/Paris" > /etc/timezone
 
-# Copy installed dependencies from builder
-COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
-COPY --from=builder /app .
+# Copy virtual environment and app code from builder
+COPY --from=builder /app/.venv /app/.venv
+COPY --from=builder /app /app
 
-# Create a non-root user
+# Setup non-root botuser
 RUN useradd -m botuser && chown -R botuser:botuser /app
 USER botuser
 
-# Set environment variables
+ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH="/app/src"
 
-# Run the bot
-CMD ["python", "index.py"] 
+CMD ["python", "src/main.py"]

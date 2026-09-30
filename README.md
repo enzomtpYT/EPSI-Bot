@@ -1,69 +1,82 @@
-# EPSI Bot Discord
+# EPSI Bot Discord (v2.0)
 
-Un bot Discord pour accéder facilement à votre emploi du temps EPSI directement depuis Discord.
+Un bot Discord moderne et réactif pour consulter votre emploi du temps EPSI directement depuis Discord grâce au flux officiel iCal Hyperplanning.
 
 [![Inviter le bot](https://img.shields.io/badge/Inviter%20le%20bot-Discord-7289DA?style=for-the-badge&logo=discord&logoColor=white)](https://discord.com/oauth2/authorize?client_id=1357424188306227451)
 
-## Fonctionnalités
+---
 
-- 📅 Afficher votre emploi du temps EPSI pour une journée spécifique
-- 📆 Afficher votre emploi du temps EPSI pour une semaine complète
-- 🔄 Enregistrement de votre nom d'utilisateur EPSI
-- 🖼️ Option pour afficher l'emploi du temps sous forme d'image
-- 📅 Filtrage par date
+## ✨ Nouveautés & Fonctionnalités v2.0
 
-## Commandes
+- 🔗 **Support direct des flux iCal Hyperplanning** : synchronisation en temps réel avec cache intelligent (5 min).
+- 🖼️ **Génération d'images moderne et légère (Pillow)** : grille horaire proportionnelle (08h00 - 19h00) fidèle à l'interface Hyperplanning, cartes au thème sombre Discord épurées, typographie Roboto avec support complet des accents français. Suppression totale des dépendances C lourdes (Cairo).
+- 🔘 **Composants interactifs Discord** : boutons *Jour précédent*, *Jour suivant*, *Semaine précédente/suivante* et bascule directe *Image / Embed*.
+- ⏱️ **Commande `/now`** : aperçu instantané du cours actuellement en cours et des 4 prochains cours avec liens directs visio Teams si disponibles.
+- 🗄️ **Base de données polyvalente (SQLModel & SQLAlchemy Async)** : support de PostgreSQL ou repli automatique sur SQLite local sans aucune configuration externe requise.
+- ⏰ **Rappels automatiques (Cron jobs)** :
+  - **Quotidien** : envoi en message privé chaque matin à 06h00.
+  - **Hebdomadaire** : envoi en message privé chaque lundi matin à 06h00.
+- ⚡ **Stack ultra-rapide** : packagé et géré avec `uv`, typé avec `ty`, formaté et analysé avec `ruff`.
 
-### `/day` - Afficher l'emploi du temps d'une journée
-Affiche votre emploi du temps EPSI pour une journée spécifique.
+---
 
-**Options :**
-- `username` : Votre nom d'utilisateur EPSI (optionnel si vous êtes enregistré)
-- `date` : Date au format JJ/MM/AAAA (optionnel, utilise la date du jour par défaut)
-- `image` : Si activé, envoie l'emploi du temps sous forme d'image
+## 🚀 Commandes Slash
 
-### `/week` - Afficher l'emploi du temps d'une semaine
-Affiche votre emploi du temps EPSI pour une semaine complète.
+### `/settings` — Configurer votre compte
+- `register` : Enregistrer votre URL d'export iCal Hyperplanning (ex: `https://...hyperplanning.fr/hp/...Edt.ics?...`).
+- `daily` : Activer ou désactiver les rappels quotidiens à 06:00.
+- `weekly` : Activer ou désactiver le récapitulatif hebdomadaire le lundi à 06:00.
+- `default_format` : Choisir entre format visuel *Image* ou *Embed texte*.
+- `unregister` : Supprimer vos données et votre lien enregistré.
 
-**Options :**
-- `username` : Votre nom d'utilisateur EPSI (optionnel si vous êtes enregistré)
-- `date` : Date au format JJ/MM/AAAA (optionnel, utilise la date du jour pour trouver la semaine actuelle)
-- `image` : Si activé, envoie l'emploi du temps sous forme d'image
+### `/day` — Emploi du temps du jour
+- Affiche le planning de la journée sélectionnée (par défaut : aujourd'hui).
+- Inclut des boutons interactifs pour feuilleter les jours.
+- Options : `date` (format `JJ/MM/AAAA`), `image` (True/False), `url` (pour une consultation ponctuelle sans être enregistré).
 
-### `/settings` - Gérer vos paramètres et enregistrement
-Permet d'enregistrer ou de supprimer votre nom d'utilisateur EPSI et de gérer les préférences de notifications.
+### `/week` — Emploi du temps de la semaine
+- Affiche un planning complet de 5 jours (du lundi au vendredi).
+- Inclut des boutons interactifs pour naviguer de semaine en semaine.
+- Options : `date` (format `JJ/MM/AAAA`), `image` (True/False), `url`.
 
-Sous-commandes / options disponibles :
-- `register` : Enregistrer ou mettre à jour votre nom d'utilisateur EPSI (ex : `/settings register username:mon_identifiant`).
-- `unregister` : Supprimer votre enregistrement (ex : `/settings unregister`).
-- `daily` : Activer/Désactiver les notifications quotidiennes (choix : Activer / Désactiver).
-- `weekly` : Activer/Désactiver les notifications hebdomadaires (choix : Activer / Désactiver).
+### `/now` — Cours en cours et suivants
+- Indique immédiatement si un cours a lieu en ce moment (avec la salle, l'intervenant et le lien Teams éventuel) ainsi que les prochains cours à venir.
 
-Exemples :
-- Enregistrer un nom d'utilisateur : `/settings register mon_identifiant`
-- Désenregistrer : `/settings unregister`
-- Activer les notifications quotidiennes : `/settings daily Activer`
+---
 
-## Installation
+## 🛠️ Développement & Qualité de code
 
-1. Cliquez sur le bouton "Inviter le bot" ci-dessus
-2. Sélectionnez le serveur où vous souhaitez ajouter le bot
-3. Autorisez les permissions nécessaires
-4. Le bot est maintenant prêt à être utilisé !
+### Prérequis
+- Python 3.11+
+- [uv](https://docs.astral.sh/uv/) installé
 
-## Configuration
+### Commandes utiles
 
-Pour utiliser le bot, vous pouvez enregistrer votre nom d'utilisateur EPSI avec la sous-commande `/settings register` (ou fournir `username` chaque fois que vous faites la commande `/day` ou `/week`). Une fois enregistré, vous pourrez utiliser les commandes `/day` et `/week` sans avoir à spécifier votre nom d'utilisateur à chaque fois.
+```bash
+# Installer les dépendances
+uv sync
 
-## Support
+# Lancer la suite de tests unitaires
+uv run pytest
 
-Si vous rencontrez des problèmes ou si vous avez des questions, n'hésitez pas à contacter le développeur du bot.
+# Vérifier et formater le code avec ruff
+uv run ruff check . --fix
+uv run ruff format .
 
-## Développement
+# Vérification des types
+uv run ty check src
 
-Ce bot est développé avec :
-- Python 3.x
-- discord.py
-- Autres dépendances listées dans `requirements.txt`
+# Lancer le bot
+uv run python src/main.py
+```
 
-Pour contribuer au développement, n'hésitez pas à ouvrir une issue ou à proposer une pull request.
+---
+
+## 🐳 Déploiement Docker
+
+Le projet dispose d'un `Dockerfile` multi-stage optimisé avec `uv` :
+
+```bash
+docker build -t epsi-bot .
+docker run -d --env-file .env --name epsi-bot epsi-bot
+```
