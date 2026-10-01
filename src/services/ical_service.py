@@ -184,6 +184,13 @@ def parse_ical_events_in_range(
             end_local = datetime.combine(dtend, datetime.min.time(), tzinfo=tz)
 
         details = parse_event_details(summary, desc, location)
+        name_lower = (details["name"] or summary or "").strip().lower()
+        uid_lower = uid.lower()
+        is_holiday = (
+            uid_lower.startswith("ferie")
+            or any(h in name_lower for h in ("férié", "ferie", "vacances", "fête", "fete"))
+            or (not isinstance(dtstart, datetime) and "cours" not in name_lower)
+        )
 
         parsed_courses.append(
             CourseEvent(
@@ -196,6 +203,7 @@ def parse_ical_events_in_range(
                 group=details["group"],
                 description=desc if desc else None,
                 teams_link=details["teams_link"],
+                event_type="holiday" if is_holiday else "course",
             )
         )
 

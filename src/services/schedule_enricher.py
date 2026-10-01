@@ -37,10 +37,20 @@ async def enrich_schedule(
     enriched: list[CourseEvent] = []
 
     for c in courses:
-        # Keep existing non-synthetic courses
+        # Ignore synthetic events if schedule was already enriched
+        if c.uid.startswith("holiday-") or c.uid.startswith("work-"):
+            continue
+
+        # If it's a holiday from iCal on a day covered by statutory holidays,
+        # skip it so the statutory holiday with canonical name and hours is used instead
+        if (
+            c.event_type == "holiday" or c.name.strip().lower() in ("férié", "ferie")
+        ) and c.event_date in holidays:
+            continue
+
         if c.event_type not in ("holiday", "work"):
             courses_by_date.setdefault(c.event_date, []).append(c)
-            enriched.append(c)
+        enriched.append(c)
 
     # Iterate over all days in the range
     curr = start_date

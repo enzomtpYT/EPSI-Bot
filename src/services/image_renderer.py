@@ -6,7 +6,7 @@ import colorsys
 import io
 import os
 from collections.abc import Sequence
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
@@ -262,7 +262,19 @@ def render_week_image(
     start_hour = 8  # Default 08:00
     end_hour = 19  # Default 19:00
 
-    non_all_day = [c for c in courses if c.event_type != "holiday"]
+    # Only consider courses that fall on displayed days (Monday to Friday)
+    visible_courses = [
+        c for c in courses if 0 <= (c.event_date - start_of_week).days < days_to_show
+    ]
+
+    # Exclude holidays and full-day events (>= 24h or midnight-to-midnight) from grid bounds
+    non_all_day = [
+        c
+        for c in visible_courses
+        if c.event_type != "holiday"
+        and c.duration_minutes < 24 * 60
+        and not (c.start.hour == 0 and c.end.hour == 0 and c.start.day != c.end.day)
+    ]
     if non_all_day:
         earliest_start = min(c.start.hour for c in non_all_day)
         latest_end = max(c.end.hour + (1 if c.end.minute > 0 else 0) for c in non_all_day)
@@ -323,13 +335,22 @@ def render_week_image(
     )
     draw.text((margin_x, margin_y + 10), title, fill=COLOR_TEXT_MAIN, font=font_title)
 
-    month_name = (MONTHS_EN if lang == "en" else MONTHS_FR)[start_of_week.month - 1]
+    end_of_week = start_of_week + timedelta(days=4)
+    start_month = (MONTHS_EN if lang == "en" else MONTHS_FR)[start_of_week.month - 1]
+    end_month = (MONTHS_EN if lang == "en" else MONTHS_FR)[end_of_week.month - 1]
     tz_suffix = f" • {target_tz}" if (target_tz and target_tz != "Europe/Paris") else ""
-    range_str = (
-        f"Week of {start_of_week.day} to {start_of_week.day + 4} {month_name} {start_of_week.year}{tz_suffix}"
-        if lang == "en"
-        else f"Du {start_of_week.day} au {start_of_week.day + 4} {month_name} {start_of_week.year}{tz_suffix}"
-    )
+    if start_of_week.month != end_of_week.month:
+        range_str = (
+            f"Week of {start_of_week.day} {start_month} to {end_of_week.day} {end_month} {end_of_week.year}{tz_suffix}"
+            if lang == "en"
+            else f"Du {start_of_week.day} {start_month} au {end_of_week.day} {end_month} {end_of_week.year}{tz_suffix}"
+        )
+    else:
+        range_str = (
+            f"Week of {start_of_week.day} to {end_of_week.day} {end_month} {end_of_week.year}{tz_suffix}"
+            if lang == "en"
+            else f"Du {start_of_week.day} au {end_of_week.day} {end_month} {end_of_week.year}{tz_suffix}"
+        )
     draw.text((margin_x, margin_y + 44), range_str, fill=COLOR_TEXT_MUTED, font=font_course_meta)
 
     # Left Time Axis (Hours labels 08:00 to 19:00)
@@ -357,7 +378,8 @@ def render_week_image(
         # 1. Day Column Header
         header_rect = [col_x, margin_y + header_h, col_x + day_width, grid_top - 4]
         draw.rounded_rectangle(header_rect, radius=6, fill=(31, 41, 55), outline=COLOR_CARD_BORDER)
-        cur_day = start_of_week.day + i
+        cur_date = start_of_week + timedelta(days=i)
+        cur_day = cur_date.day
         day_name = (DAYS_EN if lang == "en" else DAYS_FR)[i]
         day_title = f"{day_name} {cur_day}"
         draw.text(

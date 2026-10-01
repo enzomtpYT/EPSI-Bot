@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 
 import discord
 
@@ -91,11 +91,21 @@ def create_week_embed(
     week_num = start_of_week.isocalendar()[1]
     title = t("schedule_week_title", lang=lang, week=week_num)
 
-    month_name = (MONTHS_EN if lang == "en" else MONTHS_FR)[start_of_week.month - 1]
-    if lang == "en":
-        desc = f"Week of {start_of_week.day} to {start_of_week.day + 4} {month_name} {start_of_week.year}"
+    end_of_week = start_of_week + timedelta(days=4)
+    start_month = (MONTHS_EN if lang == "en" else MONTHS_FR)[start_of_week.month - 1]
+    end_month = (MONTHS_EN if lang == "en" else MONTHS_FR)[end_of_week.month - 1]
+    if start_of_week.month != end_of_week.month:
+        if lang == "en":
+            desc = f"Week of {start_of_week.day} {start_month} to {end_of_week.day} {end_month} {end_of_week.year}"
+        else:
+            desc = f"Semaine du {start_of_week.day} {start_month} au {end_of_week.day} {end_month} {end_of_week.year}"
     else:
-        desc = f"Semaine du {start_of_week.day} au {start_of_week.day + 4} {month_name} {start_of_week.year}"
+        if lang == "en":
+            desc = (
+                f"Week of {start_of_week.day} to {end_of_week.day} {end_month} {end_of_week.year}"
+            )
+        else:
+            desc = f"Semaine du {start_of_week.day} au {end_of_week.day} {end_month} {end_of_week.year}"
 
     if not courses:
         desc += f"\n\n🎉 {t('no_classes_week', lang=lang)}"

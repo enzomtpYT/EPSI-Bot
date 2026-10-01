@@ -142,3 +142,70 @@ def test_embed_builders() -> None:
     # Now Embed
     now_embed = create_now_embed(event1, [])
     assert "En cours actuellement" in str(now_embed.fields[0].name)
+
+
+def test_render_week_image_weekend_holiday_bounds_isolation() -> None:
+    """Verify Sunday events do not corrupt Monday-Friday grid hour bounds."""
+    tz = ZoneInfo("Europe/Paris")
+    # Monday course: 09:00 to 17:00
+    event_mon = CourseEvent(
+        uid="c-mon",
+        name="Entreprise",
+        start=datetime(2026, 10, 26, 9, 0, tzinfo=tz),
+        end=datetime(2026, 10, 26, 17, 0, tzinfo=tz),
+        event_type="work",
+    )
+    # Sunday midnight-to-midnight event (e.g. Toussaint / Férié)
+    event_sun = CourseEvent(
+        uid="c-sun",
+        name="Férié",
+        start=datetime(2026, 11, 1, 0, 0, tzinfo=tz),
+        end=datetime(2026, 11, 2, 0, 0, tzinfo=tz),
+        event_type="holiday",
+    )
+    courses = [event_mon, event_sun]
+    week_start = date(2026, 10, 26)
+
+    # Paris: bounds should remain 08:00 to 19:00, not expand to 00:00
+    buf_paris = render_week_image(week_start, courses, lang="fr", target_tz="Europe/Paris")
+    assert isinstance(buf_paris, io.BytesIO)
+    assert len(buf_paris.getvalue()) > 1000
+
+    # New York: bounds should remain 04:00 to 13:00, not expand to 19:00
+    buf_ny = render_week_image(week_start, courses, lang="fr", target_tz="America/New_York")
+    assert isinstance(buf_ny, io.BytesIO)
+    assert len(buf_ny.getvalue()) > 1000
+
+
+def test_week_month_boundary_date_formatting() -> None:
+    """Verify weeks crossing month boundaries format dates accurately (no 'day 34')."""
+    week_start = date(2026, 3, 30)  # Mon March 30 -> Fri April 3
+    embed = create_week_embed(week_start, [], lang="fr")
+    assert embed.description is not None
+    assert "au 3 Avril" in embed.description or "au 3 avril" in embed.description.lower()
+    assert "au 34" not in embed.description
+
+    buf = render_week_image(week_start, [], lang="fr")
+    assert isinstance(buf, io.BytesIO)
+    assert len(buf.getvalue()) > 1000
+
+
+def test_ical_parses_holiday_event_type() -> None:
+    """Verify whole-day and 'Férié' events are typed as holiday."""
+    ical_data = """BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+UID:Ferie-12345
+DTSTART;VALUE=DATE:20261101
+DTEND;VALUE=DATE:20261102
+SUMMARY:Férié
+END:VEVENT
+END:VCALENDAR"""
+    tz = ZoneInfo("Europe/Paris")
+    start = datetime(2026, 10, 31, 0, 0, tzinfo=tz)
+    end = datetime(2026, 11, 3, 0, 0, tzinfo=tz)
+
+    events = parse_ical_events_in_range(ical_data, start, end)
+    assert len(events) == 1
+    assert events[0].event_type == "holiday"
+    assert events[0].name == "Férié"
