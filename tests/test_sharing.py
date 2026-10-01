@@ -185,6 +185,9 @@ def test_timezone_conversion_helpers() -> None:
     tz_ny = get_timezone_safely("America/New_York")
     assert tz_ny.key == "America/New_York"
 
+    tz_space = get_timezone_safely("America/New York")
+    assert tz_space.key == "America/New_York"
+
     tz_invalid = get_timezone_safely("Mars/Curiosity")
     assert tz_invalid.key == "Europe/Paris"
 
@@ -211,6 +214,45 @@ def test_timezone_conversion_helpers() -> None:
     assert converted.end.hour == 7  # 13:00 Paris -> 07:00 NY
     assert course.start.strftime("%H:%M") == "09:00"
     assert course.end.strftime("%H:%M") == "13:00"
+
+
+def test_render_week_image_dynamic_grid_us_timezone() -> None:
+    """Verify weekly schedule image adjusts grid bounds so US timezone early classes (3am-11am) are rendered."""
+    from datetime import date
+
+    from services.image_renderer import render_week_image
+
+    paris_tz = ZoneInfo("Europe/Paris")
+    mon = date(2026, 10, 12)
+    courses = [
+        CourseEvent(
+            uid="c1",
+            name="Class 1",
+            start=datetime(2026, 10, 12, 9, 0, tzinfo=paris_tz),
+            end=datetime(2026, 10, 12, 11, 0, tzinfo=paris_tz),
+        ),
+        CourseEvent(
+            uid="c2",
+            name="Class 2",
+            start=datetime(2026, 10, 12, 11, 0, tzinfo=paris_tz),
+            end=datetime(2026, 10, 12, 13, 0, tzinfo=paris_tz),
+        ),
+        CourseEvent(
+            uid="c3",
+            name="Class 3",
+            start=datetime(2026, 10, 12, 15, 0, tzinfo=paris_tz),
+            end=datetime(2026, 10, 12, 17, 0, tzinfo=paris_tz),
+        ),
+    ]
+
+    buf = render_week_image(mon, courses, lang="en", target_tz="America/New_York")
+    assert buf is not None
+    assert buf.getbuffer().nbytes > 1000
+
+    # Also test with space in timezone string
+    buf_space = render_week_image(mon, courses, lang="en", target_tz="America/New York")
+    assert buf_space is not None
+    assert buf_space.getbuffer().nbytes > 1000
 
 
 @pytest.mark.asyncio

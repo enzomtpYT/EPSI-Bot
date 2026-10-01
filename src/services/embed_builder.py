@@ -116,7 +116,9 @@ def create_week_embed(
             if c.event_type == "holiday":
                 day_lines.append(f"🎉 **{c.name}** ({c.room})")
             elif c.event_type == "work":
-                day_lines.append(f"💼 {time_str} (`{c.time_range_str}`) **{c.name}** ({c.room})")
+                day_lines.append(
+                    f"💼 {time_str} (`{c.time_range_str}` Paris) **{c.name}** ({c.room})"
+                )
             else:
                 meta_items = []
                 if c.teacher:
@@ -124,7 +126,7 @@ def create_week_embed(
                 if c.room:
                     meta_items.append(f"`{c.room}`")
                 meta_info = f" ({', '.join(meta_items)})" if meta_items else ""
-                day_lines.append(f"{time_str} (`{c.time_range_str}`) **{c.name}**{meta_info}")
+                day_lines.append(f"{time_str} (`{c.time_range_str}` Paris) **{c.name}**{meta_info}")
 
         embed.add_field(
             name=format_date_localized(d, lang=lang),

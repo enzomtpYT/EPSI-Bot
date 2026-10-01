@@ -238,12 +238,33 @@ def render_week_image(
         courses = [convert_course_timezone(c, target_tz) for c in courses]
 
     days_to_show = 5  # Mon to Fri
-    start_hour = 8  # 08:00
-    end_hour = 19  # 19:00
+    start_hour = 8  # Default 08:00
+    end_hour = 19  # Default 19:00
+
+    non_all_day = [c for c in courses if c.event_type != "holiday"]
+    if non_all_day:
+        earliest_start = min(c.start.hour for c in non_all_day)
+        latest_end = max(c.end.hour + (1 if c.end.minute > 0 else 0) for c in non_all_day)
+
+        # If timezone shifted earlier (e.g. US timezones: 02:00 to 11:00)
+        if earliest_start < 8:
+            start_hour = max(0, earliest_start)
+            end_hour = min(24, max(start_hour + 8, latest_end + 1))
+        # If timezone shifted later (e.g. Asia timezones: 15:00 to 23:00)
+        elif earliest_start >= 12:
+            start_hour = max(0, earliest_start - 1)
+            end_hour = min(24, max(start_hour + 8, latest_end + 1))
+        else:
+            # Standard daytime: keep 8 to 19, or expand if earlier/later classes exist
+            start_hour = min(start_hour, earliest_start)
+            end_hour = max(end_hour, latest_end)
+
+    start_hour = max(0, min(start_hour, 23))
+    end_hour = max(start_hour + 1, min(end_hour, 24))
     total_hours = end_hour - start_hour
 
     hour_height = 68  # Pixels per 1-hour slot
-    time_col_width = 65  # Left axis for 08:00, 09:00, etc.
+    time_col_width = 70  # Left axis for 08:00, 09:00, etc.
     day_width = 245
     gap = 8
     margin_x = 24

@@ -33,8 +33,13 @@ def get_timezone_safely(tz_name: str | None) -> ZoneInfo:
     """Return ZoneInfo for tz_name or fallback to Europe/Paris."""
     if not tz_name:
         return get_local_timezone()
+    clean = tz_name.strip()
     try:
-        return ZoneInfo(tz_name.strip())
+        return ZoneInfo(clean)
+    except Exception:
+        pass
+    try:
+        return ZoneInfo(clean.replace(" ", "_"))
     except Exception:
         return get_local_timezone()
 
