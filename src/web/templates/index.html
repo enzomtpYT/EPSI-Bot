@@ -1169,21 +1169,50 @@
           const datesOfWeek = [];
           const visibleDays = [];
 
-          let minTime = 8 * 60;  // 08:00
-          let maxTime = 19 * 60; // 19:00
+          let earliestStart = null;
+          let latestEnd = null;
 
           data.forEach((dayData) => {
             dayData.forEach((item) => {
+              if (item.event_type === "holiday") return;
               const start = timeToMinutes(item.start_time);
               const end = timeToMinutes(item.end_time);
-              if (start !== null) minTime = Math.min(minTime, start);
-              if (end !== null) maxTime = Math.max(maxTime, end);
+              if (start !== null) {
+                earliestStart = earliestStart === null ? start : Math.min(earliestStart, start);
+              }
+              if (end !== null) {
+                latestEnd = latestEnd === null ? end : Math.max(latestEnd, end);
+              }
             });
           });
 
+          let minTime = 8 * 60;  // Default 08:00
+          let maxTime = 19 * 60; // Default 19:00
+
+          if (earliestStart !== null && latestEnd !== null) {
+            const startHour = Math.floor(earliestStart / 60);
+            const endHour = Math.ceil(latestEnd / 60);
+
+            // Shifted timezone earlier (e.g. US timezones: 02:00 - 11:00)
+            if (startHour < 8) {
+              minTime = Math.max(0, startHour) * 60;
+              maxTime = Math.min(24 * 60, Math.max(minTime + 8 * 60, (endHour + 1) * 60));
+            }
+            // Shifted timezone later (e.g. Asia/Pacific: 15:00 - 23:00)
+            else if (startHour >= 12) {
+              minTime = Math.max(0, (startHour - 1)) * 60;
+              maxTime = Math.min(24 * 60, Math.max(minTime + 8 * 60, (endHour + 1) * 60));
+            }
+            // Standard daytime (e.g. Europe/Paris)
+            else {
+              minTime = Math.min(8 * 60, startHour * 60);
+              maxTime = Math.max(19 * 60, endHour * 60);
+            }
+          }
+
           minTime = Math.floor(minTime / 60) * 60;
           maxTime = Math.ceil(maxTime / 60) * 60;
-          if (maxTime - minTime < 540) maxTime = minTime + 540;
+          if (maxTime - minTime < 480) maxTime = minTime + 480;
 
           for (let i = 0; i < 5; i++) {
             const date = new Date(monday);
@@ -1345,14 +1374,14 @@
 
               let teamsButton = "";
               if (block.data.teams_link) {
-                teamsButton = `<a href="${block.data.teams_link}" target="_blank" rel="noopener" class="settings-badge" title="Lien Teams" style="text-decoration:none;"><i class="bi bi-microsoft-teams"></i> Teams</a>`;
+                teamsButton = `<a href="${block.data.teams_link}" target="_blank" rel="noopener" class="desktop-teams-badge" title="Lien Teams"><i class="bi bi-microsoft-teams"></i> Teams</a>`;
               }
 
               let parisSubtime = "";
               if (block.data.school_start_time && block.data.school_start_time !== block.data.start_time) {
                 let schoolStart = currentLanguage === "en" ? convertTo12HourFormat(block.data.school_start_time) : block.data.school_start_time;
                 let schoolEnd = currentLanguage === "en" ? convertTo12HourFormat(block.data.school_end_time || "??:??") : (block.data.school_end_time || "??:??");
-                parisSubtime = ` <small style="opacity:0.75; font-size:0.72rem; font-weight:normal;">(${schoolStart} - ${schoolEnd} Paris)</small>`;
+                parisSubtime = `<span class="subtime">(${schoolStart} - ${schoolEnd} Paris)</span>`;
               }
 
               const teacherHtml =
@@ -1360,10 +1389,18 @@
                   ? ""
                   : `<div class="teacher" title="${block.data.teacher || ''}">${block.data.teacher || translations[currentLanguage].teacher}</div>`;
 
+              const roomHtml = block.data.room ? `<span class="room" title="${block.data.room}">${block.data.room}</span>` : "";
+
               scheduleItem.innerHTML = `
                 <div class="item-header">
-                  <span class="time">${startTime} - ${endTime}${parisSubtime}</span>
-                  <span class="room" title="${block.data.room || ''}">${block.data.room || translations[currentLanguage].room} ${teamsButton}</span>
+                  <div class="time-col">
+                    <span class="time">${startTime} - ${endTime}</span>
+                    ${parisSubtime}
+                  </div>
+                  <div class="header-meta">
+                    ${roomHtml}
+                    ${teamsButton}
+                  </div>
                 </div>
                 <div class="name" title="${block.data.name || ''}">${typeIcon}${block.data.name || translations[currentLanguage].untitled}</div>
                 ${teacherHtml}

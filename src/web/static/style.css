@@ -200,14 +200,21 @@ body {
 .schedule-grid {
   flex: 1 1 auto; /* Grow to fill space */
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: var(--spacing-xs);
   min-height: 0; /* Important for flex child scrolling/fitting */
   overflow: hidden; /* Prevent grid container from scrolling */
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .day-column {
   height: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
   background: var(--surface-color);
   border-radius: var(--radius-md);
   padding: 4px;
@@ -225,6 +232,9 @@ body {
   font-size: 0.9rem;
   border-bottom: 2px solid var(--border-color);
   color: var(--primary-color);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .day-schedule {
@@ -232,6 +242,10 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 0; /* Allow shrinking */
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
   position: relative;
   gap: 2px; /* Replace margin-bottom with gap */
 }
@@ -240,10 +254,13 @@ body {
 .schedule-item {
   background-color: var(--bg-color);
   border-left: 4px solid var(--primary-color);
-  padding: 4px 6px;
+  padding: 3px 5px;
   border-radius: 4px;
   font-size: 0.85rem;
   overflow: hidden;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   
   /* Flex layout for content */
   display: flex;
@@ -277,33 +294,79 @@ body {
   border-left: 4px solid #2dd4bf;
 }
 
-/* Header Row: Time + Room */
+/* Header Row: Time + Room + Teams */
 .item-header {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
-  gap: 6px;
-  flex-shrink: 0; /* Never shrink the header */
-  line-height: 1.2;
-  min-width: 0; /* Allow children truncation */
+  align-items: flex-start;
+  gap: 4px;
+  flex-shrink: 0;
+  line-height: 1.15;
+  min-width: 0;
+  width: 100%;
+}
+
+.time-col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex-shrink: 1;
 }
 
 .schedule-item .time {
-  font-size: 0.75rem;
+  font-size: 0.74rem;
+  font-weight: 600;
   color: var(--text-secondary);
   white-space: nowrap;
-  flex-shrink: 0;
+}
+
+.schedule-item .subtime {
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+  opacity: 0.8;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.header-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: 55%;
+  justify-content: flex-end;
+  flex-shrink: 1;
 }
 
 .schedule-item .room {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   color: var(--success-color);
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  flex-shrink: 1; /* Truncate room if header is too tight */
+  min-width: 0;
+  flex-shrink: 1;
   text-align: right;
+}
+
+.desktop-teams-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background-color: #5b5fc7;
+  color: #ffffff !important;
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 4px;
+  text-decoration: none;
+  flex-shrink: 0;
+  line-height: 1.2;
+}
+
+.desktop-teams-badge:hover {
+  background-color: #4a4eb0;
 }
 
 /* Name: High Priority */
