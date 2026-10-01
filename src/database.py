@@ -51,6 +51,14 @@ async def _run_alter_queries(conn) -> None:
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS share_token VARCHAR(64) DEFAULT NULL;",
             "ALTER TABLE users ADD COLUMN share_token VARCHAR(64) DEFAULT NULL;",
         ),
+        (
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name VARCHAR(100) DEFAULT NULL;",
+            "ALTER TABLE users ADD COLUMN display_name VARCHAR(100) DEFAULT NULL;",
+        ),
+        (
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(255) DEFAULT NULL;",
+            "ALTER TABLE users ADD COLUMN avatar_url VARCHAR(255) DEFAULT NULL;",
+        ),
     ]
     for pg_sql, sqlite_sql in queries:
         try:
@@ -161,17 +169,38 @@ async def update_user_notifications(
         return user
 
 
-async def get_or_create_user_profile(discord_id: int) -> UserProfile:
-    """Retrieve or create user profile by Discord ID."""
+async def get_or_create_user_profile(
+    discord_id: int,
+    *,
+    display_name: str | None = None,
+    avatar_url: str | None = None,
+) -> UserProfile:
+    """Retrieve or create user profile by Discord ID, updating display_name/avatar if provided."""
     async with async_session_maker() as session:
         statement = select(UserProfile).where(UserProfile.discord_id == discord_id)
         result = await session.execute(statement)
         user = result.scalar_one_or_none()
         if not user:
-            user = UserProfile(discord_id=discord_id)
+            user = UserProfile(
+                discord_id=discord_id,
+                display_name=display_name,
+                avatar_url=avatar_url,
+            )
             session.add(user)
             await session.commit()
             await session.refresh(user)
+        else:
+            changed = False
+            if display_name is not None and user.display_name != display_name:
+                user.display_name = display_name
+                changed = True
+            if avatar_url is not None and user.avatar_url != avatar_url:
+                user.avatar_url = avatar_url
+                changed = True
+            if changed:
+                user.updated_at = datetime.now(UTC)
+                await session.commit()
+                await session.refresh(user)
         return user
 
 
@@ -187,6 +216,8 @@ async def update_user_full_settings(
     timezone: str | None = None,
     share_enabled: bool | None = None,
     share_token: str | None = None,
+    display_name: str | None = None,
+    avatar_url: str | None = None,
 ) -> UserProfile:
     """Update complete user profile settings, creating profile if not exists."""
     async with async_session_maker() as session:
@@ -211,6 +242,8 @@ async def update_user_full_settings(
                 timezone=timezone if timezone is not None else "Europe/Paris",
                 share_enabled=share_enabled if share_enabled is not None else False,
                 share_token=share_token,
+                display_name=display_name,
+                avatar_url=avatar_url,
                 updated_at=now,
             )
             session.add(user)
@@ -233,6 +266,10 @@ async def update_user_full_settings(
                 user.share_enabled = share_enabled
             if share_token is not None:
                 user.share_token = share_token
+            if display_name is not None:
+                user.display_name = display_name
+            if avatar_url is not None:
+                user.avatar_url = avatar_url
             user.updated_at = now
 
         await session.commit()

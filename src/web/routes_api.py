@@ -94,10 +94,23 @@ async def get_whitelist(request: Request) -> dict[str, Any]:
         raise HTTPException(status_code=401, detail="Connexion requise.")
     viewers = await get_whitelisted_viewers(user["discord_id"])
     profile = await get_user_profile(user["discord_id"])
+    viewer_details: list[dict[str, Any]] = []
+    for vid in viewers:
+        v_prof = await get_user_profile(vid)
+        viewer_details.append(
+            {
+                "id": str(vid),
+                "display_name": v_prof.display_name
+                if (v_prof and v_prof.display_name)
+                else f"User {vid}",
+                "avatar_url": v_prof.avatar_url if v_prof else None,
+            }
+        )
     return {
         "share_enabled": profile.share_enabled if profile else False,
         "share_token": profile.share_token if profile else None,
         "viewers": [str(v) for v in viewers],
+        "viewer_details": viewer_details,
     }
 
 
@@ -149,10 +162,21 @@ async def get_shared_with_me(request: Request) -> list[dict[str, Any]]:
     return [
         {
             "discord_id": str(o.discord_id),
-            "display_name": f"User {o.discord_id}",
+            "display_name": o.display_name or f"User {o.discord_id}",
+            "avatar_url": o.avatar_url,
         }
         for o in owners
     ]
+
+
+@api_router.get("/timezones")
+async def get_timezones() -> list[str]:
+    """Return all available IANA timezones sorted alphabetically."""
+    import zoneinfo
+
+    return sorted(
+        [tz for tz in zoneinfo.available_timezones() if "/" in tz or tz in {"UTC", "GMT"}]
+    )
 
 
 def parse_date_safely(date_str: str) -> date:

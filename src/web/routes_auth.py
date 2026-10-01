@@ -88,7 +88,11 @@ async def callback(
     )
 
     # Ensure profile exists in DB
-    await get_or_create_user_profile(discord_id)
+    await get_or_create_user_profile(
+        discord_id,
+        display_name=global_name,
+        avatar_url=avatar_url,
+    )
 
     # Save to session
     request.session["user"] = {

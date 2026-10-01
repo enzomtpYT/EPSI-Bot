@@ -1035,15 +1035,26 @@ input:checked + .slider:before {
 }
 
 .schedule-switcher-select {
-  padding: 6px 10px;
+  padding: 6px 12px;
   font-size: 0.85rem;
+  font-weight: 500;
   border-radius: var(--radius-md);
   background: var(--surface-color);
   color: var(--text-primary);
   border: 1px solid var(--border-color);
   cursor: pointer;
-  max-width: 170px;
+  min-width: 170px;
+  max-width: 280px;
+  height: 38px;
   text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: all var(--transition-speed);
+}
+
+.schedule-switcher-select:hover,
+.schedule-switcher-select:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2);
 }
 
 /* Whitelist Manager */
@@ -1058,23 +1069,88 @@ input:checked + .slider:before {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 6px 10px;
+  padding: 8px 12px;
   background: var(--bg-color);
   border-radius: var(--radius-md);
   font-size: 0.85rem;
   border: 1px solid var(--border-color);
+  transition: background var(--transition-speed);
+}
+
+.whitelist-entry:hover {
+  background: var(--surface-color);
+}
+
+.whitelist-user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.whitelist-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid var(--border-color);
+}
+
+.whitelist-avatar-fallback {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--surface-hover);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+.whitelist-names {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.whitelist-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.85rem;
+}
+
+.whitelist-id {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.whitelist-id code {
+  font-size: 0.72rem;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: rgba(124, 58, 237, 0.1);
+  color: #a78bfa;
 }
 
 .whitelist-del-btn {
   background: none;
   border: none;
-  color: var(--danger-color);
+  color: var(--danger-color, #ef4444);
   cursor: pointer;
-  padding: 2px 6px;
-  font-size: 1rem;
+  padding: 4px 8px;
+  font-size: 1.15rem;
   line-height: 1;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-speed);
 }
 
 .whitelist-del-btn:hover {
-  opacity: 0.8;
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
 }

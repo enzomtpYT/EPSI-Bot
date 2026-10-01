@@ -335,3 +335,69 @@ async def test_web_sharing_api_endpoints() -> None:
             resp_regen = await owner_client.post("/api/share/token/regenerate")
             assert resp_regen.status_code == 200
             assert resp_regen.json()["token"] != token
+
+            # Verify /api/timezones endpoint
+            resp_tz = await owner_client.get("/api/timezones")
+            assert resp_tz.status_code == 200
+            tz_list = resp_tz.json()
+            assert isinstance(tz_list, list) and len(tz_list) > 50
+            assert "Europe/Paris" in tz_list
+            assert "America/New_York" in tz_list
+            assert "UTC" in tz_list
+
+
+@pytest.mark.asyncio
+async def test_discord_views_timezone_preservation() -> None:
+    """Verify DayScheduleView and WeekScheduleView retain target_tz on navigation."""
+    import io
+    from datetime import date
+    from unittest.mock import MagicMock
+
+    from ui.views import DayScheduleView, WeekScheduleView
+
+    target_tz = "America/Chicago"
+    start_date = date(2026, 10, 12)
+
+    # 1. DayScheduleView
+    day_view = DayScheduleView(
+        ical_url="https://example.com/cal.ics",
+        current_date=start_date,
+        show_image=True,
+        target_tz=target_tz,
+    )
+    assert day_view.target_tz == target_tz
+
+    mock_interaction = MagicMock()
+    mock_interaction.response.defer = AsyncMock()
+    mock_interaction.edit_original_response = AsyncMock()
+
+    with (
+        patch("ui.views.get_day_schedule", new=AsyncMock(return_value=[])),
+        patch("ui.views.enrich_schedule", new=AsyncMock(return_value=[])),
+        patch("ui.views.render_day_image") as mock_render_day,
+    ):
+        mock_render_day.return_value = io.BytesIO(b"fake_png")
+        await day_view._update_message(mock_interaction)
+        mock_render_day.assert_called_once()
+        _, kwargs = mock_render_day.call_args
+        assert kwargs.get("target_tz") == target_tz
+
+    # 2. WeekScheduleView
+    week_view = WeekScheduleView(
+        ical_url="https://example.com/cal.ics",
+        start_of_week=start_date,
+        show_image=True,
+        target_tz=target_tz,
+    )
+    assert week_view.target_tz == target_tz
+
+    with (
+        patch("ui.views.get_week_schedule", new=AsyncMock(return_value=[])),
+        patch("ui.views.enrich_schedule", new=AsyncMock(return_value=[])),
+        patch("ui.views.render_week_image") as mock_render_week,
+    ):
+        mock_render_week.return_value = io.BytesIO(b"fake_png")
+        await week_view._update_message(mock_interaction)
+        mock_render_week.assert_called_once()
+        _, kwargs = mock_render_week.call_args
+        assert kwargs.get("target_tz") == target_tz

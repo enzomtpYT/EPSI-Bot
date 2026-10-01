@@ -69,6 +69,10 @@ class UserProfile(SQLModel, table=True):
     share_token: str | None = SQLField(
         default=None, description="Secret token for public web share link"
     )
+    display_name: str | None = SQLField(
+        default=None, description="Discord user display name or global name"
+    )
+    avatar_url: str | None = SQLField(default=None, description="Discord avatar image URL")
     updated_at: datetime = SQLField(
         default_factory=get_utc_now, description="Last update timestamp"
     )

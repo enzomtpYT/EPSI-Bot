@@ -113,6 +113,7 @@ async def handle_week_command(
             user_id=interaction.user.id,
             lang=lang,
             show_work_days=show_work,
+            target_tz=viewer_tz,
         )
 
         if prefer_image:

@@ -23,6 +23,7 @@ class DayScheduleView(discord.ui.View):
         user_id: int | None = None,
         lang: str = "fr",
         show_work_days: bool = True,
+        target_tz: str = "Europe/Paris",
     ):
         super().__init__(timeout=180)
         self.ical_url = ical_url
@@ -31,6 +32,7 @@ class DayScheduleView(discord.ui.View):
         self.user_id = user_id
         self.lang = lang
         self.show_work_days = show_work_days
+        self.target_tz = target_tz
 
         # Update button labels according to language
         self.prev_day.label = "◀ " + ("Previous Day" if lang == "en" else "Jour précédent")
@@ -50,7 +52,9 @@ class DayScheduleView(discord.ui.View):
         )
 
         if self.show_image:
-            img_buf = render_day_image(self.current_date, courses, lang=self.lang)
+            img_buf = render_day_image(
+                self.current_date, courses, lang=self.lang, target_tz=self.target_tz
+            )
             file = discord.File(img_buf, filename=f"schedule_{self.current_date.isoformat()}.png")
             await interaction.edit_original_response(attachments=[file], embed=None, view=self)
         else:
@@ -95,6 +99,7 @@ class WeekScheduleView(discord.ui.View):
         user_id: int | None = None,
         lang: str = "fr",
         show_work_days: bool = True,
+        target_tz: str = "Europe/Paris",
     ):
         super().__init__(timeout=180)
         self.ical_url = ical_url
@@ -103,6 +108,7 @@ class WeekScheduleView(discord.ui.View):
         self.user_id = user_id
         self.lang = lang
         self.show_work_days = show_work_days
+        self.target_tz = target_tz
 
         # Update button labels according to language
         self.prev_week.label = "◀ " + ("Previous Week" if lang == "en" else "Semaine précédente")
@@ -123,7 +129,9 @@ class WeekScheduleView(discord.ui.View):
         )
 
         if self.show_image:
-            img_buf = render_week_image(self.start_of_week, courses, lang=self.lang)
+            img_buf = render_week_image(
+                self.start_of_week, courses, lang=self.lang, target_tz=self.target_tz
+            )
             file = discord.File(img_buf, filename=f"week_{self.start_of_week.isoformat()}.png")
             await interaction.edit_original_response(attachments=[file], embed=None, view=self)
         else:

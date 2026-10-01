@@ -141,14 +141,9 @@
 
           <div class="form-group">
             <label for="settingTimezone" id="settingTzLabel">Fuseau horaire</label>
-            <select id="settingTimezone" class="input-field">
-              <option value="auto">🌐 Automatique (Navigateur)</option>
-              <option value="Europe/Paris">🇫🇷 Europe/Paris (France)</option>
-              <option value="America/New_York">🇺🇸 America/New_York (US Eastern)</option>
-              <option value="America/Chicago">🇺🇸 America/Chicago (US Central)</option>
-              <option value="America/Denver">🇺🇸 America/Denver (US Mountain)</option>
-              <option value="America/Los_Angeles">🇺🇸 America/Los_Angeles (US Pacific)</option>
-              <option value="UTC">🌐 UTC</option>
+            <input type="text" id="timezoneSearch" class="input-field" placeholder="🔍 Rechercher un fuseau... (ex: Chicago, Tokyo)" style="margin-bottom: 6px; font-size: 0.85rem;" />
+            <select id="settingTimezone" class="input-field" style="font-size: 0.85rem; max-height: 180px;">
+              <option value="Europe/Paris">Europe/Paris</option>
             </select>
           </div>
 
@@ -271,6 +266,7 @@
         const addWhitelistBtn = document.getElementById("addWhitelistBtn");
         const whitelistList = document.getElementById("whitelistList");
         const settingsSaveStatus = document.getElementById("settingsSaveStatus");
+        const timezoneSearch = document.getElementById("timezoneSearch");
 
         // Week picker modal elements
         const weekPickerModal = document.getElementById("weekPickerModal");
@@ -325,6 +321,7 @@
             copied: "Lien copié !",
             localTime: "Heure locale",
             schoolTime: "Heure école (Paris)",
+            autoTz: "Automatique (Navigateur)",
           },
           en: {
             title: "EPSI Schedule",
@@ -366,6 +363,7 @@
             copied: "Link copied!",
             localTime: "Local time",
             schoolTime: "School time (Paris)",
+            autoTz: "Automatic (Browser)",
           },
         };
 
@@ -398,9 +396,82 @@
         let pickerCurrentDate = new Date();
         let selectedWeekStart = null;
 
+        // Dynamic full IANA timezones list
+        let allTimezones = [];
+        async function initTimezones(selectedTz) {
+          try {
+            if (window.Intl && typeof Intl.supportedValuesOf === "function") {
+              allTimezones = Intl.supportedValuesOf("timeZone");
+            } else {
+              const resp = await fetch("/api/timezones");
+              if (resp.ok) {
+                allTimezones = await resp.json();
+              }
+            }
+          } catch (e) {
+            console.warn("Could not load timezones dynamically:", e);
+          }
+
+          if (!allTimezones || allTimezones.length === 0) {
+            allTimezones = [
+              "Europe/Paris", "Europe/London", "America/New_York", "America/Chicago",
+              "America/Denver", "America/Los_Angeles", "Asia/Tokyo", "UTC"
+            ];
+          }
+
+          renderTimezoneOptions(allTimezones, selectedTz || userPreferredTimezone || "Europe/Paris");
+        }
+
+        function renderTimezoneOptions(tzList, currentTz, filterText = "") {
+          const lowerFilter = filterText.toLowerCase().trim();
+          const filtered = lowerFilter
+            ? tzList.filter((tz) => tz.toLowerCase().includes(lowerFilter))
+            : tzList;
+
+          settingTimezone.innerHTML = "";
+
+          if (!lowerFilter || "auto".includes(lowerFilter) || "navigateur".includes(lowerFilter) || "browser".includes(lowerFilter)) {
+            const autoOpt = document.createElement("option");
+            autoOpt.value = "auto";
+            autoOpt.textContent = `🌐 ${translations[currentLanguage].autoTz || "Automatique (Navigateur)"}`;
+            if (currentTz === "auto") autoOpt.selected = true;
+            settingTimezone.appendChild(autoOpt);
+          }
+
+          const groups = {};
+          filtered.forEach((tz) => {
+            const parts = tz.split("/");
+            const region = parts.length > 1 ? parts[0] : "Other";
+            if (!groups[region]) groups[region] = [];
+            groups[region].push(tz);
+          });
+
+          Object.keys(groups).sort().forEach((region) => {
+            const optgroup = document.createElement("optgroup");
+            optgroup.label = region;
+            groups[region].forEach((tz) => {
+              const opt = document.createElement("option");
+              opt.value = tz;
+              opt.textContent = tz.replace(/_/g, " ");
+              if (tz === currentTz) opt.selected = true;
+              optgroup.appendChild(opt);
+            });
+            settingTimezone.appendChild(optgroup);
+          });
+        }
+
+        if (timezoneSearch) {
+          timezoneSearch.addEventListener("input", function () {
+            renderTimezoneOptions(allTimezones, settingTimezone.value, this.value);
+          });
+        }
+
         weekDate.value = formatDateForInput(currentMondayDate);
         applyLanguage();
         updateSelectedWeekText(currentMondayDate);
+
+        // Preload timezones
+        await initTimezones(userPreferredTimezone);
 
         // Check authentication state from server
         await checkAuth();
@@ -585,8 +656,9 @@
                 userPreferredTimezone = data.settings.timezone;
                 localStorage.setItem("edtTimezone", userPreferredTimezone);
                 activeTimezone = userPreferredTimezone === "auto" ? detectedTz : userPreferredTimezone;
-                settingTimezone.value = userPreferredTimezone;
               }
+              await initTimezones(userPreferredTimezone);
+
               if (data.settings.share_token) {
                 shareSecretLink.value = window.location.origin + "/share/" + data.settings.share_token;
               }
@@ -645,15 +717,26 @@
               shareSecretLink.value = window.location.origin + "/share/" + data.share_token;
             }
             whitelistList.innerHTML = "";
-            if (!data.viewers || data.viewers.length === 0) {
+            const viewers = data.viewer_details || (data.viewers || []).map((v) => ({ id: v, display_name: "ID: " + v }));
+            if (!viewers || viewers.length === 0) {
               whitelistList.innerHTML = `<p style="font-size: 0.8rem; color: var(--text-secondary); margin: 4px 0;">Aucun utilisateur autorisé.</p>`;
               return;
             }
-            data.viewers.forEach((vid) => {
+            viewers.forEach((v) => {
+              const vid = v.id;
               const entry = document.createElement("div");
               entry.className = "whitelist-entry";
+              const avatarHtml = v.avatar_url
+                ? `<img src="${v.avatar_url}" class="whitelist-avatar" alt="avatar" />`
+                : `<div class="whitelist-avatar-fallback"><i class="bi bi-discord"></i></div>`;
               entry.innerHTML = `
-                <span><i class="bi bi-discord"></i> ID: <code>${vid}</code></span>
+                <div class="whitelist-user-info">
+                  ${avatarHtml}
+                  <div class="whitelist-names">
+                    <span class="whitelist-name">${escapeHtml(v.display_name || ('User ' + vid))}</span>
+                    <span class="whitelist-id"><code>${vid}</code></span>
+                  </div>
+                </div>
                 <button type="button" class="whitelist-del-btn" data-viewer-id="${vid}" title="Supprimer">&times;</button>
               `;
               entry.querySelector(".whitelist-del-btn").addEventListener("click", async function () {
@@ -683,7 +766,7 @@
               shared.forEach((s) => {
                 const opt = document.createElement("option");
                 opt.value = s.discord_id;
-                opt.textContent = `👥 ${translations[currentLanguage].sharedSchedule} ${s.display_name}`;
+                opt.textContent = `👥 ${s.display_name}`;
                 scheduleSwitcher.appendChild(opt);
               });
 
