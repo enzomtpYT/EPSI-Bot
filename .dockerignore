@@ -11,6 +11,8 @@ __pycache__
 .env.*
 *.sqlite3
 *.sqlite3-journal
+*.log
+bot.log
 tests
 .coverage
 htmlcov

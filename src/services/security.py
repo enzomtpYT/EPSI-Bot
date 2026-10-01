@@ -7,6 +7,9 @@ import logging
 import socket
 from urllib.parse import urlsplit
 
+from aiohttp.abc import ResolveResult
+from aiohttp.resolver import ThreadedResolver
+
 logger = logging.getLogger(__name__)
 
 # Maximum permissible iCal download size (5 MB)
@@ -51,6 +54,11 @@ def validate_safe_url(url: str | None) -> str:
         raise ValueError(
             "Protocole non autorisé : seuls les protocoles HTTP et HTTPS sont acceptés."
         )
+
+    # Restrict allowed ports to standard web ports (80, 443)
+    port = parsed.port
+    if port is not None and port not in {80, 443}:
+        raise ValueError(f"Port non autorisé ({port}) : seuls les ports 80 et 443 sont acceptés.")
 
     hostname = parsed.hostname
     if not hostname:
@@ -105,3 +113,19 @@ def is_safe_http_url(url: str | None) -> bool:
     if any(lower.startswith(bad) for bad in ("javascript:", "data:", "vbscript:", "file:")):
         return False
     return True
+
+
+class SafeResolver(ThreadedResolver):
+    """DNS resolver that validates resolved IP addresses to defeat DNS rebinding attacks."""
+
+    async def resolve(
+        self, host: str, port: int = 0, family: socket.AddressFamily = socket.AF_INET
+    ) -> list[ResolveResult]:
+        records = await super().resolve(host, port, family)
+        for r in records:
+            ip_str = str(r.get("host", ""))
+            if is_ip_forbidden(ip_str):
+                raise ValueError(
+                    f"Tentative de DNS rebinding bloquée : {host} résout vers une IP locale ou privée ({ip_str})."
+                )
+        return records

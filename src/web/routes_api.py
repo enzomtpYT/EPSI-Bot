@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import logging
+import re
 from datetime import date, timedelta
 from typing import Any
 
 from dateutil import parser
 from fastapi import APIRouter, HTTPException, Query, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from database import (
     add_whitelisted_viewer,
@@ -33,13 +34,13 @@ api_router = APIRouter(prefix="/api", tags=["api"])
 class UpdateSettingsRequest(BaseModel):
     """Payload for updating user notification, language, and calendar settings."""
 
-    ical_url: str | None = None
+    ical_url: str | None = Field(None, max_length=2048)
     daily_notifications: bool | None = None
     weekly_notifications: bool | None = None
     prefer_image: bool | None = None
-    language: str | None = None
+    language: str | None = Field(None, max_length=10)
     show_work_days: bool | None = None
-    timezone: str | None = None
+    timezone: str | None = Field(None, max_length=100)
     share_enabled: bool | None = None
 
 
@@ -187,9 +188,14 @@ async def get_timezones() -> list[str]:
     )
 
 
+DATE_PATTERN = re.compile(r"^\d{2,4}[-/.]\d{1,2}[-/.]\d{2,4}$")
+
+
 def parse_date_safely(date_str: str) -> date:
-    """Parse date in ISO (YYYY-MM-DD) or European (DD-MM-YYYY) format."""
+    """Parse date in ISO (YYYY-MM-DD) or European (DD-MM-YYYY) format with pre-validation."""
     clean = date_str.strip()
+    if not DATE_PATTERN.match(clean):
+        raise ValueError("Format de date invalide.")
     if "-" in clean:
         parts = clean.split("-")
         if len(parts) == 3 and len(parts[0]) == 4:
@@ -201,21 +207,31 @@ def parse_date_safely(date_str: str) -> date:
 async def get_schedule_week(
     request: Request,
     date_str: str = Query(
-        ..., alias="date", description="Reference date (YYYY-MM-DD or DD-MM-YYYY)"
+        ...,
+        alias="date",
+        max_length=30,
+        description="Reference date (YYYY-MM-DD or DD-MM-YYYY)",
     ),
-    url: str | None = Query(None, description="Direct iCal URL (optional if user logged in)"),
+    url: str | None = Query(
+        None, max_length=2048, description="Direct iCal URL (optional if user logged in)"
+    ),
     owner_id: int | None = Query(
         None, description="Discord ID of schedule owner if viewing shared"
     ),
     share_token: str | None = Query(
-        None, alias="token", description="Secret share token if accessing via share link"
+        None,
+        alias="token",
+        max_length=64,
+        description="Secret share token if accessing via share link",
     ),
-    tz: str = Query("Europe/Paris", description="Viewer local timezone"),
+    tz: str = Query("Europe/Paris", max_length=100, description="Viewer local timezone"),
     work_days: bool | None = Query(
         None, description="Display synthetic work/alternance on empty weekdays"
     ),
-    lang: str = Query("fr", description="Language preference ('fr' or 'en')"),
-    cache_bust: str | None = Query(None, alias="_", description="Cache buster timestamp"),
+    lang: str = Query("fr", max_length=10, description="Language preference ('fr' or 'en')"),
+    cache_bust: str | None = Query(
+        None, alias="_", max_length=50, description="Cache buster timestamp"
+    ),
 ) -> list[list[dict[str, Any]]]:
     """Fetch and parse week schedule for the given date and iCal source.
 
@@ -277,13 +293,21 @@ async def get_schedule_week(
     try:
         target_url = validate_safe_url(target_url)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=f"Lien iCal invalide ou interdit : {e}")
+        logger.warning(f"Rejected unsafe iCal URL: {e}")
+        raise HTTPException(
+            status_code=400,
+            detail="Lien iCal invalide ou interdit par la politique de sécurité.",
+        )
 
     # 2. Parse reference date
     try:
         parsed_date: date = parse_date_safely(date_str)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Date invalide: {e}")
+        logger.warning(f"Invalid date string '{date_str}': {e}")
+        raise HTTPException(
+            status_code=400,
+            detail="Format de date invalide (attendu : AAAA-MM-JJ ou JJ-MM-AAAA).",
+        )
 
     # Monday of the week
     monday = parsed_date - timedelta(days=parsed_date.weekday())
@@ -302,9 +326,10 @@ async def get_schedule_week(
             lang=lang,
         )
     except Exception as e:
-        logger.error(f"Error fetching week schedule: {e}")
+        logger.error(f"Error fetching week schedule: {e}", exc_info=True)
         raise HTTPException(
-            status_code=500, detail=f"Erreur lors de la récupération de l'iCal: {e}"
+            status_code=502,
+            detail="Impossible de récupérer ou d'analyser l'emploi du temps.",
         )
 
     # 4. Group courses by day of week (Monday=0 to Friday=4)

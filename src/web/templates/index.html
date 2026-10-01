@@ -750,8 +750,9 @@
               const vid = v.id;
               const entry = document.createElement("div");
               entry.className = "whitelist-entry";
-              const avatarHtml = v.avatar_url
-                ? `<img src="${v.avatar_url}" class="whitelist-avatar" alt="avatar" />`
+              const safeAvatar = safeHttpUrl(v.avatar_url);
+              const avatarHtml = safeAvatar
+                ? `<img src="${escapeHtml(safeAvatar)}" class="whitelist-avatar" alt="avatar" />`
                 : `<div class="whitelist-avatar-fallback"><i class="bi bi-discord"></i></div>`;
               entry.innerHTML = `
                 <div class="whitelist-user-info">
@@ -1119,12 +1120,16 @@
         }
 
         function showError(msg) {
-          scheduleContainer.innerHTML = `
-            <div style="grid-column: 1 / -1; text-align: center;">
-              <div class="alert alert-error" role="alert">
-                ${msg || translations[currentLanguage].errorFetching}
-              </div>
-            </div>`;
+          scheduleContainer.textContent = "";
+          const wrapper = document.createElement("div");
+          wrapper.style.gridColumn = "1 / -1";
+          wrapper.style.textAlign = "center";
+          const alert = document.createElement("div");
+          alert.className = "alert alert-error";
+          alert.setAttribute("role", "alert");
+          alert.textContent = msg || translations[currentLanguage].errorFetching;
+          wrapper.appendChild(alert);
+          scheduleContainer.appendChild(wrapper);
         }
 
         // Schedule Loader & Renderer

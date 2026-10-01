@@ -5,22 +5,23 @@ from __future__ import annotations
 import logging
 import re
 from collections.abc import Sequence
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import aiohttp
 import recurring_ical_events
+from cachetools import TTLCache
 from icalendar import Calendar
 
 from config import settings
 from models import CourseEvent
-from services.security import MAX_ICAL_DOWNLOAD_BYTES, validate_safe_url
+from services.security import MAX_ICAL_DOWNLOAD_BYTES, SafeResolver, validate_safe_url
 
 logger = logging.getLogger(__name__)
 
-# In-memory cache for iCal text: url -> (fetch_time, ical_text)
-_ICAL_CACHE: dict[str, tuple[datetime, str]] = {}
 CACHE_TTL_SECONDS = 300  # 5 minutes cache to avoid spamming Hyperplanning servers
+# Size-bounded TTL cache (max 64 items, remote OOM protection)
+_ICAL_CACHE: TTLCache[str, str] = TTLCache(maxsize=64, ttl=CACHE_TTL_SECONDS)
 
 
 def get_local_timezone() -> ZoneInfo:
@@ -208,17 +209,14 @@ async def fetch_ical_content(url: str, force_refresh: bool = False) -> str:
     # 1. Validate URL against SSRF and unsafe protocols
     safe_url = validate_safe_url(url)
 
-    now = datetime.now(UTC)
-
     if not force_refresh and safe_url in _ICAL_CACHE:
-        cached_time, cached_content = _ICAL_CACHE[safe_url]
-        if (now - cached_time).total_seconds() < CACHE_TTL_SECONDS:
-            logger.info("Serving iCal from in-memory cache.")
-            return cached_content
+        logger.info("Serving iCal from size-bounded in-memory cache.")
+        return _ICAL_CACHE[safe_url]
 
     logger.info("Fetching iCal content from source...")
     timeout = aiohttp.ClientTimeout(total=20)
-    async with aiohttp.ClientSession(timeout=timeout) as session:
+    connector = aiohttp.TCPConnector(resolver=SafeResolver())
+    async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
         async with session.get(safe_url, allow_redirects=False) as response:
             if response.status != 200:
                 raise ValueError(f"Failed to fetch iCal (HTTP {response.status})")
@@ -233,7 +231,7 @@ async def fetch_ical_content(url: str, force_refresh: bool = False) -> str:
                     )
 
             text = content_bytes.decode("utf-8", errors="replace")
-            _ICAL_CACHE[safe_url] = (now, text)
+            _ICAL_CACHE[safe_url] = text
             return text
 
 

@@ -53,10 +53,10 @@ def test_validate_safe_url():
     with pytest.raises(
         ValueError, match="Accès aux hôtes locaux non autorisé|Accès aux adresses IP"
     ):
-        validate_safe_url("http://localhost:8080/secret")
+        validate_safe_url("http://localhost/secret")
 
     with pytest.raises(ValueError, match="Accès aux adresses IP privées"):
-        validate_safe_url("http://127.0.0.1:8080/test")
+        validate_safe_url("http://127.0.0.1/test")
 
     # Cloud metadata
     with pytest.raises(ValueError, match="Accès aux adresses IP privées"):
@@ -122,3 +122,58 @@ async def test_oauth_csrf_state_protection():
         )
         assert resp.status_code == 307
         assert "error=csrf_state_invalid" in resp.headers.get("location", "")
+
+
+def test_validate_safe_url_port_restrictions():
+    """Verify non-standard web ports (e.g. 8080, 6379, 5432) are rejected."""
+    with pytest.raises(ValueError, match="Port non autorisé"):
+        validate_safe_url("http://example.com:8080/test.ics")
+
+    with pytest.raises(ValueError, match="Port non autorisé"):
+        validate_safe_url("https://example.com:6379/dump.rdb")
+
+    with pytest.raises(ValueError, match="Port non autorisé"):
+        validate_safe_url("http://example.com:22/ssh")
+
+
+def test_cache_maxsize_bounded():
+    """Verify in-memory iCal cache is bounded to maxsize 64 entries (DoS protection)."""
+    from services.ical_service import _ICAL_CACHE
+
+    assert hasattr(_ICAL_CACHE, "maxsize")
+    assert _ICAL_CACHE.maxsize == 64
+
+
+@pytest.mark.asyncio
+async def test_safe_resolver_rebinding_prevention():
+    """Verify SafeResolver detects and rejects private IP resolutions."""
+    from unittest.mock import AsyncMock, patch
+
+    from services.security import SafeResolver
+
+    resolver = SafeResolver()
+
+    # Mock super().resolve returning a private IP (DNS rebinding attempt)
+    fake_records = [{"host": "127.0.0.1", "port": 80, "family": 2}]
+    with patch(
+        "aiohttp.resolver.ThreadedResolver.resolve", new=AsyncMock(return_value=fake_records)
+    ):
+        with pytest.raises(ValueError, match="Tentative de DNS rebinding bloquée"):
+            await resolver.resolve("evil-rebind.com")
+
+
+@pytest.mark.asyncio
+async def test_error_sanitization_no_leak():
+    """Verify API errors sanitize exception details without leaking payloads into response."""
+    app = create_web_app()
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # Invalid date with payload
+        resp = await client.get(
+            "/api/schedule/week?date=<script>alert(1)</script>&url=https://example.com/test.ics"
+        )
+        assert resp.status_code == 400
+        assert "<script>" not in resp.text
+        assert (
+            resp.json()["detail"] == "Format de date invalide (attendu : AAAA-MM-JJ ou JJ-MM-AAAA)."
+        )
