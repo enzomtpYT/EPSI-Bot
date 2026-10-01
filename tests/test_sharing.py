@@ -481,3 +481,78 @@ def test_strip_teams_links_and_view_privacy() -> None:
     assert stripped[0].teacher == "Prof X"
     # Original should remain intact
     assert c.teams_link == "https://teams.microsoft.com/l/meetup-join/secret"
+
+
+@pytest.mark.asyncio
+async def test_discord_views_teams_button() -> None:
+    """Verify Teams link button is added for non-shared users and hidden for shared users."""
+    from datetime import date
+
+    from ui.views import DayScheduleView, WeekScheduleView
+
+    now_dt = datetime.now()
+    c_with_teams = CourseEvent(
+        uid="c-teams",
+        name="Systèmes Embarqués",
+        start=now_dt,
+        end=now_dt,
+        teams_link="https://teams.microsoft.com/l/meetup-join/direct-link",
+    )
+    c_no_teams = CourseEvent(
+        uid="c-no-teams",
+        name="Anglais",
+        start=now_dt,
+        end=now_dt,
+        teams_link=None,
+    )
+
+    # 1. Non-shared user with Teams link -> Teams button present
+    day_view_owner = DayScheduleView(
+        ical_url="https://example.com/cal.ics",
+        current_date=date.today(),
+        hide_teams=False,
+        courses=[c_with_teams],
+    )
+    assert day_view_owner.teams_button is not None
+    assert (
+        day_view_owner.teams_button.url == "https://teams.microsoft.com/l/meetup-join/direct-link"
+    )
+    assert day_view_owner.teams_button in day_view_owner.children
+
+    week_view_owner = WeekScheduleView(
+        ical_url="https://example.com/cal.ics",
+        start_of_week=date.today(),
+        hide_teams=False,
+        courses=[c_with_teams],
+    )
+    assert week_view_owner.teams_button is not None
+    assert (
+        week_view_owner.teams_button.url == "https://teams.microsoft.com/l/meetup-join/direct-link"
+    )
+    assert week_view_owner.teams_button in week_view_owner.children
+
+    # 2. Shared user with Teams link -> Teams button MUST NOT be present
+    day_view_shared = DayScheduleView(
+        ical_url="https://example.com/cal.ics",
+        current_date=date.today(),
+        hide_teams=True,
+        courses=[c_with_teams],
+    )
+    assert day_view_shared.teams_button is None
+
+    week_view_shared = WeekScheduleView(
+        ical_url="https://example.com/cal.ics",
+        start_of_week=date.today(),
+        hide_teams=True,
+        courses=[c_with_teams],
+    )
+    assert week_view_shared.teams_button is None
+
+    # 3. Non-shared user with NO Teams link -> Teams button NOT present
+    day_view_none = DayScheduleView(
+        ical_url="https://example.com/cal.ics",
+        current_date=date.today(),
+        hide_teams=False,
+        courses=[c_no_teams],
+    )
+    assert day_view_none.teams_button is None

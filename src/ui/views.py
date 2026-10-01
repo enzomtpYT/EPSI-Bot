@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import date, timedelta
 
 import discord
 
+from models import CourseEvent
 from services.embed_builder import create_day_embed, create_week_embed
 from services.ical_service import get_day_schedule, get_week_schedule, strip_teams_links
 from services.image_renderer import render_day_image, render_week_image
@@ -25,6 +27,7 @@ class DayScheduleView(discord.ui.View):
         show_work_days: bool = True,
         target_tz: str = "Europe/Paris",
         hide_teams: bool = False,
+        courses: Sequence[CourseEvent] | None = None,
     ):
         super().__init__(timeout=180)
         self.ical_url = ical_url
@@ -35,12 +38,37 @@ class DayScheduleView(discord.ui.View):
         self.show_work_days = show_work_days
         self.target_tz = target_tz
         self.hide_teams = hide_teams
+        self.teams_button: discord.ui.Button | None = None
 
         # Update button labels according to language
         self.prev_day.label = "◀ " + ("Previous Day" if lang == "en" else "Jour précédent")
         self.today.label = "Today" if lang == "en" else "Aujourd'hui"
         self.next_day.label = ("Next Day" if lang == "en" else "Jour suivant") + " ▶"
         self.toggle_view.label = "🖼️ / 📄 " + ("Toggle View" if lang == "en" else "Basculer vue")
+
+        if courses:
+            self._sync_teams_button(courses)
+
+    def _sync_teams_button(self, courses: Sequence[CourseEvent]) -> None:
+        """Add or update link button to Microsoft Teams if any course has a link."""
+        if self.teams_button is not None and self.teams_button in self.children:
+            self.remove_item(self.teams_button)
+            self.teams_button = None
+
+        if self.hide_teams:
+            return
+
+        first_link = next((c.teams_link for c in courses if c.teams_link), None)
+        if first_link:
+            btn_label = "Join Teams" if self.lang == "en" else "Rejoindre Teams"
+            self.teams_button = discord.ui.Button(
+                label=btn_label,
+                url=first_link,
+                style=discord.ButtonStyle.link,
+                emoji="🔗",
+                row=1,
+            )
+            self.add_item(self.teams_button)
 
     async def _update_message(self, interaction: discord.Interaction) -> None:
         await interaction.response.defer()
@@ -54,6 +82,8 @@ class DayScheduleView(discord.ui.View):
         )
         if self.hide_teams:
             courses = strip_teams_links(courses)
+
+        self._sync_teams_button(courses)
 
         if self.show_image:
             img_buf = render_day_image(
@@ -105,6 +135,7 @@ class WeekScheduleView(discord.ui.View):
         show_work_days: bool = True,
         target_tz: str = "Europe/Paris",
         hide_teams: bool = False,
+        courses: Sequence[CourseEvent] | None = None,
     ):
         super().__init__(timeout=180)
         self.ical_url = ical_url
@@ -115,12 +146,37 @@ class WeekScheduleView(discord.ui.View):
         self.show_work_days = show_work_days
         self.target_tz = target_tz
         self.hide_teams = hide_teams
+        self.teams_button: discord.ui.Button | None = None
 
         # Update button labels according to language
         self.prev_week.label = "◀ " + ("Previous Week" if lang == "en" else "Semaine précédente")
         self.current_week.label = "This Week" if lang == "en" else "Cette semaine"
         self.next_week.label = ("Next Week" if lang == "en" else "Semaine suivante") + " ▶"
         self.toggle_view.label = "🖼️ / 📄 " + ("Toggle View" if lang == "en" else "Basculer vue")
+
+        if courses:
+            self._sync_teams_button(courses)
+
+    def _sync_teams_button(self, courses: Sequence[CourseEvent]) -> None:
+        """Add or update link button to Microsoft Teams if any course has a link."""
+        if self.teams_button is not None and self.teams_button in self.children:
+            self.remove_item(self.teams_button)
+            self.teams_button = None
+
+        if self.hide_teams:
+            return
+
+        first_link = next((c.teams_link for c in courses if c.teams_link), None)
+        if first_link:
+            btn_label = "Join Teams" if self.lang == "en" else "Rejoindre Teams"
+            self.teams_button = discord.ui.Button(
+                label=btn_label,
+                url=first_link,
+                style=discord.ButtonStyle.link,
+                emoji="🔗",
+                row=1,
+            )
+            self.add_item(self.teams_button)
 
     async def _update_message(self, interaction: discord.Interaction) -> None:
         await interaction.response.defer()
@@ -135,6 +191,8 @@ class WeekScheduleView(discord.ui.View):
         )
         if self.hide_teams:
             courses = strip_teams_links(courses)
+
+        self._sync_teams_button(courses)
 
         if self.show_image:
             img_buf = render_week_image(

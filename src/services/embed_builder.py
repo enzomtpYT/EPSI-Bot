@@ -121,6 +121,8 @@ def create_week_embed(
                 )
             else:
                 meta_items = []
+                if c.teams_link:
+                    meta_items.append(f"🔗 [Teams]({c.teams_link})")
                 if c.teacher:
                     meta_items.append(c.teacher)
                 if c.room:

@@ -117,6 +117,7 @@ async def handle_day_command(
             show_work_days=show_work,
             target_tz=viewer_tz,
             hide_teams=is_shared_view,
+            courses=courses,
         )
 
         if prefer_image:

@@ -199,6 +199,25 @@ def render_day_image(
                 course_name = course_name[:42] + "..."
             draw.text((details_x, curr_y + 20), course_name, fill=COLOR_TEXT_MAIN, font=font_medium)
 
+            # Visual Teams pill badge in top-right of card
+            if course.teams_link:
+                font_teams = get_font(12, bold=True)
+                badge_w = 68
+                badge_h = 22
+                badge_x = width - card_margin - badge_w - 18
+                badge_y = curr_y + 18
+                draw.rounded_rectangle(
+                    [badge_x, badge_y, badge_x + badge_w, badge_y + badge_h],
+                    radius=5,
+                    fill=(91, 95, 199),
+                )
+                draw.text(
+                    (badge_x + 9, badge_y + 3),
+                    "Teams",
+                    fill=(255, 255, 255),
+                    font=font_teams,
+                )
+
             # Room & Teacher line
             meta_parts = []
             if course.room:
@@ -397,6 +416,28 @@ def render_week_image(
                 fill=accent,
                 font=font_course_time,
             )
+
+            # Visual Teams badge in top-right of card
+            if course.teams_link:
+                font_teams = get_font(9, bold=True)
+                badge_w = 42
+                badge_h = 16
+                badge_x1 = col_x + day_width - badge_w - 8
+                badge_y1 = card_y1 + 5
+                badge_x2 = badge_x1 + badge_w
+                badge_y2 = badge_y1 + badge_h
+                draw.rounded_rectangle(
+                    [badge_x1, badge_y1, badge_x2, badge_y2],
+                    radius=4,
+                    fill=(91, 95, 199),
+                )
+                draw.text(
+                    (badge_x1 + 6, badge_y1 + 2),
+                    "Teams",
+                    fill=(255, 255, 255),
+                    font=font_teams,
+                )
+
             curr_text_y += 18
 
             # Course Name (word-wrapped if block is tall enough)
