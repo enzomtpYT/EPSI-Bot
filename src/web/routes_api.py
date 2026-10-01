@@ -45,7 +45,7 @@ class UpdateSettingsRequest(BaseModel):
 class AddWhitelistRequest(BaseModel):
     """Payload for adding a Discord user ID to whitelist."""
 
-    viewer_id: int
+    viewer_id: int | str
 
 
 @api_router.post("/settings")
@@ -97,7 +97,7 @@ async def get_whitelist(request: Request) -> dict[str, Any]:
     return {
         "share_enabled": profile.share_enabled if profile else False,
         "share_token": profile.share_token if profile else None,
-        "viewers": viewers,
+        "viewers": [str(v) for v in viewers],
     }
 
 
@@ -107,17 +107,25 @@ async def add_whitelist(payload: AddWhitelistRequest, request: Request) -> dict[
     user = request.session.get("user")
     if not user:
         raise HTTPException(status_code=401, detail="Connexion requise.")
-    success = await add_whitelisted_viewer(owner_id=user["discord_id"], viewer_id=payload.viewer_id)
+    try:
+        vid = int(str(payload.viewer_id).strip())
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="ID Discord invalide.")
+    success = await add_whitelisted_viewer(owner_id=user["discord_id"], viewer_id=vid)
     return {"success": success}
 
 
 @api_router.delete("/share/whitelist/{viewer_id}")
-async def remove_whitelist(viewer_id: int, request: Request) -> dict[str, Any]:
+async def remove_whitelist(viewer_id: str, request: Request) -> dict[str, Any]:
     """Remove a viewer ID from the current user's whitelist."""
     user = request.session.get("user")
     if not user:
         raise HTTPException(status_code=401, detail="Connexion requise.")
-    success = await remove_whitelisted_viewer(owner_id=user["discord_id"], viewer_id=viewer_id)
+    try:
+        vid = int(viewer_id.strip())
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="ID Discord invalide.")
+    success = await remove_whitelisted_viewer(owner_id=user["discord_id"], viewer_id=vid)
     return {"success": success}
 
 
@@ -140,7 +148,7 @@ async def get_shared_with_me(request: Request) -> list[dict[str, Any]]:
     owners = await get_schedules_shared_with(user["discord_id"])
     return [
         {
-            "discord_id": o.discord_id,
+            "discord_id": str(o.discord_id),
             "display_name": f"User {o.discord_id}",
         }
         for o in owners

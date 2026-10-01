@@ -697,7 +697,7 @@
         }
 
         scheduleSwitcher.addEventListener("change", function () {
-          activeOwnerId = this.value ? parseInt(this.value) : null;
+          activeOwnerId = this.value || null;
           loadSchedule(currentMondayDate, true);
         });
 
@@ -731,15 +731,15 @@
 
         addWhitelistBtn.addEventListener("click", async function () {
           const val = newWhitelistId.value.trim();
-          if (!val || isNaN(val)) {
-            alert("Veuillez entrer un ID utilisateur Discord numérique valide.");
+          if (!val || !/^\d{17,20}$/.test(val)) {
+            alert("Veuillez entrer un ID utilisateur Discord numérique valide (17-20 chiffres).");
             return;
           }
           try {
             await fetch("/api/share/whitelist", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ viewer_id: parseInt(val) }),
+              body: JSON.stringify({ viewer_id: val }),
             });
             newWhitelistId.value = "";
             loadWhitelist();

@@ -279,15 +279,28 @@ async def test_web_sharing_api_endpoints() -> None:
             assert resp_wl.status_code == 200
             assert resp_wl.json()["viewers"] == []
 
-            # Add viewer_id to whitelist
+            # Add viewer_id to whitelist (supports string and int)
             resp_add = await owner_client.post(
                 "/api/share/whitelist",
-                json={"viewer_id": viewer_id},
+                json={"viewer_id": str(viewer_id)},
             )
             assert resp_add.status_code == 200
 
             resp_wl2 = await owner_client.get("/api/share/whitelist")
-            assert resp_wl2.json()["viewers"] == [viewer_id]
+            assert resp_wl2.json()["viewers"] == [str(viewer_id)]
+
+            # Test 64-bit Discord snowflake precision (e.g. 1026865713203388447)
+            large_snowflake = 1026865713203388447
+            resp_add_large = await owner_client.post(
+                "/api/share/whitelist",
+                json={"viewer_id": str(large_snowflake)},
+            )
+            assert resp_add_large.status_code == 200
+            resp_wl_large = await owner_client.get("/api/share/whitelist")
+            assert str(large_snowflake) in resp_wl_large.json()["viewers"]
+            # Clean up large snowflake
+            resp_del_large = await owner_client.delete(f"/api/share/whitelist/{large_snowflake}")
+            assert resp_del_large.status_code == 200
 
             # Client 3: Viewer client (authenticated)
             async with AsyncClient(
@@ -300,7 +313,7 @@ async def test_web_sharing_api_endpoints() -> None:
                 assert resp_shared.status_code == 200
                 shared_list = resp_shared.json()
                 assert len(shared_list) == 1
-                assert shared_list[0]["discord_id"] == owner_id
+                assert shared_list[0]["discord_id"] == str(owner_id)
 
                 # Viewer accesses owner's schedule via owner_id parameter
                 resp_viewer_access = await viewer_client.get(
