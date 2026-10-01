@@ -35,6 +35,10 @@ Un bot Discord moderne et réactif pour consulter votre emploi du temps EPSI dir
 - ⏰ **Rappels automatiques (Cron jobs)** :
   - **Quotidien** : envoi en message privé chaque matin à 06h00.
   - **Hebdomadaire** : envoi en message privé chaque lundi matin à 06h00.
+- 🛡️ **Sécurité renforcée & Anti-SSRF** :
+  - Résolveur DNS sécurisé (`SafeResolver`) vérifiant les adresses IP à la connexion pour bloquer toute tentative de SSRF et de rebinding DNS (TOCTOU).
+  - Cache iCal en mémoire borné (`TTLCache`) et limite de taille de téléchargement pour prévenir les dénis de service (DoS / OOM).
+  - Assainissement strict du DOM contre les failles XSS et audit continu des dépendances (0 CVE).
 - ⚡ **Stack ultra-rapide** : packagé et géré avec `uv`, typé avec `ty`, formaté et analysé avec `ruff`.
 
 ---
@@ -93,6 +97,9 @@ uv run ruff format .
 
 # Vérification des types
 uv run ty check
+
+# Audit des vulnérabilités de dépendances (CVE)
+uvx pip-audit
 
 # Lancer le bot
 uv run python src/main.py
