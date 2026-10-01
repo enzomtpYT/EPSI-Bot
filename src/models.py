@@ -64,6 +64,28 @@ class UserProfile(SQLModel, table=True):
     show_work_days: bool = SQLField(
         default=True, description="Display synthetic work/alternance on class-free weekdays"
     )
+    timezone: str = SQLField(default="Europe/Paris", description="Viewer preferred IANA timezone")
+    share_enabled: bool = SQLField(default=False, description="Whether schedule sharing is enabled")
+    share_token: str | None = SQLField(
+        default=None, description="Secret token for public web share link"
+    )
     updated_at: datetime = SQLField(
         default_factory=get_utc_now, description="Last update timestamp"
+    )
+
+
+class UserShareWhitelist(SQLModel, table=True):
+    """Database model for whitelisted viewers allowed to view an owner's schedule."""
+
+    __tablename__ = "user_shares"
+
+    id: int | None = SQLField(default=None, primary_key=True)
+    owner_id: int = SQLField(
+        sa_type=BigInteger, index=True, description="Schedule owner Discord ID"
+    )
+    viewer_id: int = SQLField(
+        sa_type=BigInteger, index=True, description="Whitelisted viewer Discord ID"
+    )
+    created_at: datetime = SQLField(
+        default_factory=get_utc_now, description="When whitelist entry was created"
     )

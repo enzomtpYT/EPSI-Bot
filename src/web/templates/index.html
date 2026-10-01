@@ -54,6 +54,9 @@
       <!-- Week selector with navigation buttons -->
       <div class="controls-toolbar">
         <input type="hidden" id="weekDate" />
+        <div class="schedule-switcher-container" id="scheduleSwitcherContainer" style="display:none;">
+          <select id="scheduleSwitcher" class="input-field schedule-switcher-select"></select>
+        </div>
         <button class="btn btn-secondary nav-btn" id="prevWeekBtn">
           <i class="bi bi-arrow-left"></i> <span class="btn-text">Semaine précédente</span>
         </button>
@@ -65,6 +68,9 @@
         </button>
         <button class="btn btn-secondary nav-btn" type="button" id="datePickerBtn">
           <i class="bi bi-calendar3"></i> <span class="btn-text" id="datePickerBtnText">Choisir semaine</span>
+        </button>
+        <button class="btn btn-secondary nav-btn" id="timezoneToggleBtn" title="Basculer fuseau horaire / Toggle timezone">
+          <i class="bi bi-globe"></i> <span id="timezoneLabel">Europe/Paris</span>
         </button>
         <button class="btn btn-secondary nav-btn" id="nextWeekBtn">
           <span class="btn-text">Semaine suivante</span> <i class="bi bi-arrow-right"></i>
@@ -134,6 +140,19 @@
           </div>
 
           <div class="form-group">
+            <label for="settingTimezone" id="settingTzLabel">Fuseau horaire</label>
+            <select id="settingTimezone" class="input-field">
+              <option value="auto">🌐 Automatique (Navigateur)</option>
+              <option value="Europe/Paris">🇫🇷 Europe/Paris (France)</option>
+              <option value="America/New_York">🇺🇸 America/New_York (US Eastern)</option>
+              <option value="America/Chicago">🇺🇸 America/Chicago (US Central)</option>
+              <option value="America/Denver">🇺🇸 America/Denver (US Mountain)</option>
+              <option value="America/Los_Angeles">🇺🇸 America/Los_Angeles (US Pacific)</option>
+              <option value="UTC">🌐 UTC</option>
+            </select>
+          </div>
+
+          <div class="form-group">
             <label id="settingsNotifLabel">Notifications Discord</label>
             <div class="form-switch">
               <span id="dailyNotifLabel">Rappels quotidiens (06h00)</span>
@@ -164,6 +183,33 @@
               </label>
             </div>
           </div>
+
+          <!-- Schedule Sharing Section -->
+          <div class="form-group sharing-section" id="sharingSectionGroup" style="border-top: 1px solid var(--border-color); padding-top: 14px; margin-top: 14px;">
+            <label style="font-weight: 700;" id="shareSectionTitle"><i class="bi bi-share"></i> Partage d'emploi du temps</label>
+            <div class="form-switch" style="margin-top: 6px;">
+              <span id="shareToggleLabel">Activer le partage</span>
+              <label class="switch">
+                <input type="checkbox" id="settingShareEnabled" />
+                <span class="slider"></span>
+              </label>
+            </div>
+            <div id="shareSettingsDetails" style="display: none; margin-top: 12px;">
+              <label style="font-size: 0.85rem; font-weight: 600;" id="shareSecretLinkLabel">Lien secret Web</label>
+              <div style="display: flex; gap: 8px; margin-bottom: 12px; margin-top: 4px;">
+                <input type="text" id="shareSecretLink" class="input-field" readonly style="font-size: 0.8rem; background: var(--bg-color);" />
+                <button type="button" class="btn btn-secondary btn-icon" id="copyShareLinkBtn" title="Copier"><i class="bi bi-clipboard"></i></button>
+                <button type="button" class="btn btn-secondary btn-icon" id="regenShareLinkBtn" title="Régénérer"><i class="bi bi-arrow-repeat"></i></button>
+              </div>
+              <label style="font-size: 0.85rem; font-weight: 600;" id="shareWhitelistLabel">Utilisateurs Discord autorisés (ID)</label>
+              <div style="display: flex; gap: 8px; margin-bottom: 8px; margin-top: 4px;">
+                <input type="text" id="newWhitelistId" class="input-field" placeholder="ex: 123456789012345678" style="font-size: 0.85rem;" />
+                <button type="button" class="btn btn-primary" id="addWhitelistBtn" style="padding: 6px 12px; font-size: 0.85rem; white-space: nowrap;"><i class="bi bi-plus-lg"></i> <span id="addBtnText">Ajouter</span></button>
+              </div>
+              <div id="whitelistList" class="whitelist-list" style="max-height: 120px; overflow-y: auto;"></div>
+            </div>
+          </div>
+
           <div id="settingsSaveStatus" style="display: none;" class="alert alert-info">Modifications enregistrées !</div>
         </div>
         <div class="modal-footer" style="justify-content: space-between;">
@@ -195,6 +241,12 @@
         const welcomeTitle = document.getElementById("welcomeTitle");
         const welcomeText = document.getElementById("welcomeText");
 
+        // Schedule Switcher & Timezone DOM
+        const scheduleSwitcherContainer = document.getElementById("scheduleSwitcherContainer");
+        const scheduleSwitcher = document.getElementById("scheduleSwitcher");
+        const timezoneToggleBtn = document.getElementById("timezoneToggleBtn");
+        const timezoneLabel = document.getElementById("timezoneLabel");
+
         // Auth & Settings DOM
         const discordLoginBtn = document.getElementById("discordLoginBtn");
         const userProfileBtn = document.getElementById("userProfileBtn");
@@ -204,10 +256,20 @@
         const closeSettingsModal = document.getElementById("closeSettingsModal");
         const saveSettingsBtn = document.getElementById("saveSettingsBtn");
         const settingsIcalUrl = document.getElementById("settingsIcalUrl");
+        const settingLanguage = document.getElementById("settingLanguage");
+        const settingTimezone = document.getElementById("settingTimezone");
         const settingDailyNotif = document.getElementById("settingDailyNotif");
         const settingWeeklyNotif = document.getElementById("settingWeeklyNotif");
         const settingPreferImage = document.getElementById("settingPreferImage");
         const settingWorkDays = document.getElementById("settingWorkDays");
+        const settingShareEnabled = document.getElementById("settingShareEnabled");
+        const shareSettingsDetails = document.getElementById("shareSettingsDetails");
+        const shareSecretLink = document.getElementById("shareSecretLink");
+        const copyShareLinkBtn = document.getElementById("copyShareLinkBtn");
+        const regenShareLinkBtn = document.getElementById("regenShareLinkBtn");
+        const newWhitelistId = document.getElementById("newWhitelistId");
+        const addWhitelistBtn = document.getElementById("addWhitelistBtn");
+        const whitelistList = document.getElementById("whitelistList");
         const settingsSaveStatus = document.getElementById("settingsSaveStatus");
 
         // Week picker modal elements
@@ -258,6 +320,11 @@
             workDays: "Jours en entreprise (Alternance)",
             botLanguage: "Langue du bot Discord",
             logout: "Déconnexion",
+            mySchedule: "Mon emploi du temps",
+            sharedSchedule: "Planning de",
+            copied: "Lien copié !",
+            localTime: "Heure locale",
+            schoolTime: "Heure école (Paris)",
           },
           en: {
             title: "EPSI Schedule",
@@ -294,6 +361,11 @@
             workDays: "Company work days (Apprenticeship)",
             botLanguage: "Discord Bot Language",
             logout: "Log out",
+            mySchedule: "My schedule",
+            sharedSchedule: "Schedule of",
+            copied: "Link copied!",
+            localTime: "Local time",
+            schoolTime: "School time (Paris)",
           },
         };
 
@@ -304,6 +376,23 @@
         let currentMondayDate = getMondayOfCurrentWeek();
         let currentLanguage = localStorage.getItem("edtLanguage") || "fr";
         let currentUser = null;
+
+        // Timezone & Sharing state
+        const detectedTz = Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Paris";
+        let userPreferredTimezone = localStorage.getItem("edtTimezone") || "auto";
+        let activeTimezone = userPreferredTimezone === "auto" ? detectedTz : userPreferredTimezone;
+        let isShowingSchoolTime = false;
+        let activeOwnerId = null;
+        let directShareToken = null;
+
+        const pathParts = window.location.pathname.split("/share/");
+        if (pathParts.length > 1 && pathParts[1].trim()) {
+          directShareToken = pathParts[1].trim();
+        }
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get("token")) {
+          directShareToken = urlParams.get("token");
+        }
 
         // Week picker variables
         let pickerCurrentDate = new Date();
@@ -489,6 +578,18 @@
               settingWeeklyNotif.checked = Boolean(data.settings.weekly_notifications);
               settingPreferImage.checked = Boolean(data.settings.prefer_image);
               settingWorkDays.checked = data.settings.show_work_days !== false;
+              settingShareEnabled.checked = Boolean(data.settings.share_enabled);
+              shareSettingsDetails.style.display = settingShareEnabled.checked ? "block" : "none";
+
+              if (data.settings.timezone) {
+                userPreferredTimezone = data.settings.timezone;
+                localStorage.setItem("edtTimezone", userPreferredTimezone);
+                activeTimezone = userPreferredTimezone === "auto" ? detectedTz : userPreferredTimezone;
+                settingTimezone.value = userPreferredTimezone;
+              }
+              if (data.settings.share_token) {
+                shareSecretLink.value = window.location.origin + "/share/" + data.settings.share_token;
+              }
 
               // Apply saved language from user profile if present
               if (data.settings.language) {
@@ -496,11 +597,13 @@
                 localStorage.setItem("edtLanguage", currentLanguage);
                 applyLanguage();
               }
-              const settingLangSelect = document.getElementById("settingLanguage");
-              if (settingLangSelect) settingLangSelect.value = currentLanguage;
+              if (settingLanguage) settingLanguage.value = currentLanguage;
 
-              // If iCal URL is configured in DB, load schedule immediately
-              if (data.settings.ical_url) {
+              loadWhitelist();
+              loadSharedWithMe();
+
+              // If direct share token or iCal URL is configured, load schedule
+              if (directShareToken || data.settings.ical_url) {
                 userIdContainer.classList.add("hidden");
                 loadSchedule(currentMondayDate);
                 return;
@@ -515,6 +618,12 @@
             console.warn("Unable to check auth status:", e);
           }
 
+          if (directShareToken) {
+            userIdContainer.classList.add("hidden");
+            loadSchedule(currentMondayDate);
+            return;
+          }
+
           // Fallback to localStorage if not logged in or no DB url
           const savedUrl = localStorage.getItem("edtIcalUrl");
           if (savedUrl) {
@@ -525,6 +634,119 @@
             if (initialMessage) initialMessage.textContent = translations[currentLanguage].enterIdToShow;
           }
         }
+
+        async function loadWhitelist() {
+          if (!currentUser) return;
+          try {
+            const resp = await fetch("/api/share/whitelist");
+            if (!resp.ok) return;
+            const data = await resp.json();
+            if (data.share_token) {
+              shareSecretLink.value = window.location.origin + "/share/" + data.share_token;
+            }
+            whitelistList.innerHTML = "";
+            if (!data.viewers || data.viewers.length === 0) {
+              whitelistList.innerHTML = `<p style="font-size: 0.8rem; color: var(--text-secondary); margin: 4px 0;">Aucun utilisateur autorisé.</p>`;
+              return;
+            }
+            data.viewers.forEach((vid) => {
+              const entry = document.createElement("div");
+              entry.className = "whitelist-entry";
+              entry.innerHTML = `
+                <span><i class="bi bi-discord"></i> ID: <code>${vid}</code></span>
+                <button type="button" class="whitelist-del-btn" data-viewer-id="${vid}" title="Supprimer">&times;</button>
+              `;
+              entry.querySelector(".whitelist-del-btn").addEventListener("click", async function () {
+                await fetch(`/api/share/whitelist/${vid}`, { method: "DELETE" });
+                loadWhitelist();
+              });
+              whitelistList.appendChild(entry);
+            });
+          } catch (e) {
+            console.warn("Could not load whitelist:", e);
+          }
+        }
+
+        async function loadSharedWithMe() {
+          if (!currentUser) return;
+          try {
+            const resp = await fetch("/api/shared-with-me");
+            if (!resp.ok) return;
+            const shared = await resp.json();
+            if (shared && shared.length > 0) {
+              scheduleSwitcher.innerHTML = "";
+              const myOpt = document.createElement("option");
+              myOpt.value = "";
+              myOpt.textContent = `👤 ${translations[currentLanguage].mySchedule}`;
+              scheduleSwitcher.appendChild(myOpt);
+
+              shared.forEach((s) => {
+                const opt = document.createElement("option");
+                opt.value = s.discord_id;
+                opt.textContent = `👥 ${translations[currentLanguage].sharedSchedule} ${s.display_name}`;
+                scheduleSwitcher.appendChild(opt);
+              });
+
+              scheduleSwitcherContainer.style.display = "inline-flex";
+            } else {
+              scheduleSwitcherContainer.style.display = "none";
+            }
+          } catch (e) {
+            console.warn("Could not load shared schedules:", e);
+          }
+        }
+
+        scheduleSwitcher.addEventListener("change", function () {
+          activeOwnerId = this.value ? parseInt(this.value) : null;
+          loadSchedule(currentMondayDate, true);
+        });
+
+        timezoneToggleBtn.addEventListener("click", function () {
+          isShowingSchoolTime = !isShowingSchoolTime;
+          timezoneToggleBtn.classList.toggle("active", isShowingSchoolTime);
+          loadSchedule(currentMondayDate, true);
+        });
+
+        settingShareEnabled.addEventListener("change", function () {
+          shareSettingsDetails.style.display = this.checked ? "block" : "none";
+        });
+
+        copyShareLinkBtn.addEventListener("click", function () {
+          if (!shareSecretLink.value) return;
+          navigator.clipboard.writeText(shareSecretLink.value);
+          alert(translations[currentLanguage].copied);
+        });
+
+        regenShareLinkBtn.addEventListener("click", async function () {
+          try {
+            const resp = await fetch("/api/share/token/regenerate", { method: "POST" });
+            const data = await resp.json();
+            if (data.token) {
+              shareSecretLink.value = window.location.origin + "/share/" + data.token;
+            }
+          } catch (e) {
+            alert("Erreur lors de la régénération du lien.");
+          }
+        });
+
+        addWhitelistBtn.addEventListener("click", async function () {
+          const val = newWhitelistId.value.trim();
+          if (!val || isNaN(val)) {
+            alert("Veuillez entrer un ID utilisateur Discord numérique valide.");
+            return;
+          }
+          try {
+            await fetch("/api/share/whitelist", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ viewer_id: parseInt(val) }),
+            });
+            newWhitelistId.value = "";
+            loadWhitelist();
+          } catch (e) {
+            alert("Erreur lors de l'ajout.");
+          }
+        });
 
         // Settings Modal events
         userProfileBtn.addEventListener("click", function () {
@@ -548,7 +770,9 @@
           const weeklyVal = settingWeeklyNotif.checked;
           const preferImageVal = settingPreferImage.checked;
           const workDaysVal = settingWorkDays.checked;
-          const langVal = document.getElementById("settingLanguage").value;
+          const langVal = settingLanguage.value;
+          const tzVal = settingTimezone.value;
+          const shareEnabledVal = settingShareEnabled.checked;
 
           try {
             saveSettingsBtn.disabled = true;
@@ -562,6 +786,8 @@
                 prefer_image: preferImageVal,
                 language: langVal,
                 show_work_days: workDaysVal,
+                timezone: tzVal,
+                share_enabled: shareEnabledVal,
               }),
             });
 
@@ -579,6 +805,10 @@
               localStorage.setItem("edtIcalUrl", icalUrlVal);
             }
             localStorage.setItem("edtShowWorkDays", workDaysVal);
+
+            userPreferredTimezone = tzVal;
+            localStorage.setItem("edtTimezone", tzVal);
+            activeTimezone = tzVal === "auto" ? detectedTz : tzVal;
 
             if (langVal !== currentLanguage) {
               currentLanguage = langVal;
@@ -796,26 +1026,38 @@
           updateSelectedWeekText(selectedDate);
 
           const formattedDate = formatDateForInput(selectedDate);
-          let targetUrl = "";
+          const tzToUse = isShowingSchoolTime ? "Europe/Paris" : activeTimezone;
+          const tzDisplay = isShowingSchoolTime ? "Paris" : (activeTimezone.split("/").pop().replace(/_/g, " "));
+          if (timezoneLabel) timezoneLabel.textContent = tzDisplay;
 
-          if (currentUser && currentUser.settings && currentUser.settings.ical_url) {
-            targetUrl = currentUser.settings.ical_url;
+          let endpoint = `/api/schedule/week?date=${formattedDate}&tz=${encodeURIComponent(tzToUse)}&lang=${currentLanguage}`;
+
+          if (directShareToken) {
+            endpoint += `&token=${encodeURIComponent(directShareToken)}`;
+          } else if (activeOwnerId) {
+            endpoint += `&owner_id=${activeOwnerId}`;
           } else {
-            targetUrl = localStorage.getItem("edtIcalUrl") || "";
+            let targetUrl = "";
+            if (currentUser && currentUser.settings && currentUser.settings.ical_url) {
+              targetUrl = currentUser.settings.ical_url;
+            } else {
+              targetUrl = localStorage.getItem("edtIcalUrl") || "";
+            }
+
+            if (!targetUrl) {
+              userIdContainer.classList.remove("hidden");
+              showError(translations[currentLanguage].enterIdToShow);
+              return;
+            }
+
+            const showWorkDaysVal =
+              currentUser && currentUser.settings && typeof currentUser.settings.show_work_days === "boolean"
+                ? currentUser.settings.show_work_days
+                : localStorage.getItem("edtShowWorkDays") !== "false";
+
+            endpoint += `&url=${encodeURIComponent(targetUrl)}&work_days=${showWorkDaysVal}`;
           }
 
-          if (!targetUrl) {
-            userIdContainer.classList.remove("hidden");
-            showError(translations[currentLanguage].enterIdToShow);
-            return;
-          }
-
-          const showWorkDaysVal =
-            currentUser && currentUser.settings && typeof currentUser.settings.show_work_days === "boolean"
-              ? currentUser.settings.show_work_days
-              : localStorage.getItem("edtShowWorkDays") !== "false";
-
-          let endpoint = `/api/schedule/week?date=${formattedDate}&url=${encodeURIComponent(targetUrl)}&work_days=${showWorkDaysVal}&lang=${currentLanguage}`;
           if (noCache) {
             endpoint += `&_=${Date.now()}`;
           }
@@ -1023,6 +1265,13 @@
                 teamsButton = `<a href="${block.data.teams_link}" target="_blank" rel="noopener" class="settings-badge" title="Lien Teams" style="text-decoration:none;"><i class="bi bi-microsoft-teams"></i> Teams</a>`;
               }
 
+              let parisSubtime = "";
+              if (block.data.school_start_time && block.data.school_start_time !== block.data.start_time) {
+                let schoolStart = currentLanguage === "en" ? convertTo12HourFormat(block.data.school_start_time) : block.data.school_start_time;
+                let schoolEnd = currentLanguage === "en" ? convertTo12HourFormat(block.data.school_end_time || "??:??") : (block.data.school_end_time || "??:??");
+                parisSubtime = ` <small style="opacity:0.75; font-size:0.72rem; font-weight:normal;">(${schoolStart} - ${schoolEnd} Paris)</small>`;
+              }
+
               const teacherHtml =
                 block.data.event_type === "holiday" || block.data.event_type === "work"
                   ? ""
@@ -1030,7 +1279,7 @@
 
               scheduleItem.innerHTML = `
                 <div class="item-header">
-                  <span class="time">${startTime} - ${endTime}</span>
+                  <span class="time">${startTime} - ${endTime}${parisSubtime}</span>
                   <span class="room" title="${block.data.room || ''}">${block.data.room || translations[currentLanguage].room} ${teamsButton}</span>
                 </div>
                 <div class="name" title="${block.data.name || ''}">${typeIcon}${block.data.name || translations[currentLanguage].untitled}</div>
@@ -1131,6 +1380,13 @@
 
             const durationStr = calculateDurationStr(item.start_time, item.end_time);
 
+            let parisSubtime = "";
+            if (item.school_start_time && item.school_start_time !== item.start_time) {
+              let schoolStart = currentLanguage === "en" ? convertTo12HourFormat(item.school_start_time) : item.school_start_time;
+              let schoolEnd = currentLanguage === "en" ? convertTo12HourFormat(item.school_end_time || "??:??") : (item.school_end_time || "??:??");
+              parisSubtime = ` <span style="font-size:0.75rem; font-weight:normal; opacity:0.8; margin-left:4px;">(${schoolStart} - ${schoolEnd} Paris)</span>`;
+            }
+
             let teamsBtn = "";
             if (item.teams_link) {
               teamsBtn = `<a href="${item.teams_link}" target="_blank" rel="noopener" class="mobile-teams-btn" title="Teams"><i class="bi bi-microsoft-teams"></i> Teams</a>`;
@@ -1155,7 +1411,7 @@
 
             card.innerHTML = `
               <div class="mobile-card-top">
-                <span class="mobile-card-time">${typeIcon}${startTime} - ${endTime}</span>
+                <span class="mobile-card-time">${typeIcon}${startTime} - ${endTime}${parisSubtime}</span>
                 ${durationStr ? `<span class="mobile-card-duration">${durationStr}</span>` : ""}
               </div>
               <div class="mobile-card-title">${itemName}</div>

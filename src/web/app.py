@@ -81,6 +81,21 @@ def create_web_app() -> FastAPI:
                 "oauth_configured": bool(
                     settings.discord_client_id and settings.discord_client_secret
                 ),
+                "share_token": None,
+            },
+        )
+
+    # Shared schedule direct link route
+    @app.get("/share/{token}", response_class=HTMLResponse)
+    async def share_page(request: Request, token: str) -> HTMLResponse:
+        return templates.TemplateResponse(
+            request=request,
+            name="index.html",
+            context={
+                "oauth_configured": bool(
+                    settings.discord_client_id and settings.discord_client_secret
+                ),
+                "share_token": token,
             },
         )
 

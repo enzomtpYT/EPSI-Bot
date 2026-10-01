@@ -13,6 +13,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 from models import CourseEvent
 from services.i18n import DAYS_EN, DAYS_FR, MONTHS_EN, MONTHS_FR, t
+from services.ical_service import convert_course_timezone
 
 FRENCH_DAYS = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
 FRENCH_MONTHS = [
@@ -110,9 +111,15 @@ def get_course_colors(
 
 
 def render_day_image(
-    target_date: date, courses: Sequence[CourseEvent], lang: str = "fr"
+    target_date: date,
+    courses: Sequence[CourseEvent],
+    lang: str = "fr",
+    target_tz: str = "Europe/Paris",
 ) -> io.BytesIO:
     """Render a clean, high-resolution daily schedule card with Pillow."""
+    if target_tz and target_tz != "Europe/Paris":
+        courses = [convert_course_timezone(c, target_tz) for c in courses]
+
     width = 850
     card_margin = 30
     card_spacing = 16
@@ -147,7 +154,8 @@ def render_day_image(
 
     courses_label = "classes" if lang == "en" else "cours"
     subtitle_prefix = "EPSI Timetable" if lang == "en" else "Emploi du temps EPSI"
-    subtitle_text = f"{subtitle_prefix} • {total_courses} {courses_label}"
+    tz_suffix = f" • {target_tz}" if (target_tz and target_tz != "Europe/Paris") else ""
+    subtitle_text = f"{subtitle_prefix} • {total_courses} {courses_label}{tz_suffix}"
     draw.text((card_margin, 68), subtitle_text, fill=COLOR_TEXT_MUTED, font=font_small)
 
     if total_courses == 0:
@@ -216,13 +224,19 @@ def render_day_image(
 
 
 def render_week_image(
-    start_of_week: date, courses: Sequence[CourseEvent], lang: str = "fr"
+    start_of_week: date,
+    courses: Sequence[CourseEvent],
+    lang: str = "fr",
+    target_tz: str = "Europe/Paris",
 ) -> io.BytesIO:
     """Render a weekly calendar timetable with proportional time slots (08:00 - 19:00).
 
     Classes span proportionally across their hours (e.g. 9-13 expands across 4 slots),
     just like the official Hyperplanning portal grid.
     """
+    if target_tz and target_tz != "Europe/Paris":
+        courses = [convert_course_timezone(c, target_tz) for c in courses]
+
     days_to_show = 5  # Mon to Fri
     start_hour = 8  # 08:00
     end_hour = 19  # 19:00
@@ -268,10 +282,11 @@ def render_week_image(
     draw.text((margin_x, margin_y + 10), title, fill=COLOR_TEXT_MAIN, font=font_title)
 
     month_name = (MONTHS_EN if lang == "en" else MONTHS_FR)[start_of_week.month - 1]
+    tz_suffix = f" • {target_tz}" if (target_tz and target_tz != "Europe/Paris") else ""
     range_str = (
-        f"Week of {start_of_week.day} to {start_of_week.day + 4} {month_name} {start_of_week.year}"
+        f"Week of {start_of_week.day} to {start_of_week.day + 4} {month_name} {start_of_week.year}{tz_suffix}"
         if lang == "en"
-        else f"Du {start_of_week.day} au {start_of_week.day + 4} {month_name} {start_of_week.year}"
+        else f"Du {start_of_week.day} au {start_of_week.day + 4} {month_name} {start_of_week.year}{tz_suffix}"
     )
     draw.text((margin_x, margin_y + 44), range_str, fill=COLOR_TEXT_MUTED, font=font_course_meta)
 

@@ -1026,4 +1026,55 @@ input:checked + .slider:before {
   color: var(--primary-color);
   font-weight: 600;
   margin-left: 6px;
+}
+
+/* Schedule Switcher */
+.schedule-switcher-container {
+  display: inline-flex;
+  align-items: center;
+}
+
+.schedule-switcher-select {
+  padding: 6px 10px;
+  font-size: 0.85rem;
+  border-radius: var(--radius-md);
+  background: var(--surface-color);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+  max-width: 170px;
+  text-overflow: ellipsis;
+}
+
+/* Whitelist Manager */
+.whitelist-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.whitelist-entry {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  background: var(--bg-color);
+  border-radius: var(--radius-md);
+  font-size: 0.85rem;
+  border: 1px solid var(--border-color);
+}
+
+.whitelist-del-btn {
+  background: none;
+  border: none;
+  color: var(--danger-color);
+  cursor: pointer;
+  padding: 2px 6px;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.whitelist-del-btn:hover {
+  opacity: 0.8;
 }

@@ -132,5 +132,8 @@ async def get_current_user_info(request: Request) -> dict:
             "prefer_image": profile.prefer_image if profile else True,
             "language": profile.language if profile else "fr",
             "show_work_days": profile.show_work_days if profile else True,
+            "timezone": profile.timezone if profile else "Europe/Paris",
+            "share_enabled": profile.share_enabled if profile else False,
+            "share_token": profile.share_token if profile else None,
         },
     }

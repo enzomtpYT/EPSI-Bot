@@ -29,6 +29,35 @@ def get_local_timezone() -> ZoneInfo:
         return ZoneInfo("Europe/Paris")
 
 
+def get_timezone_safely(tz_name: str | None) -> ZoneInfo:
+    """Return ZoneInfo for tz_name or fallback to Europe/Paris."""
+    if not tz_name:
+        return get_local_timezone()
+    try:
+        return ZoneInfo(tz_name.strip())
+    except Exception:
+        return get_local_timezone()
+
+
+def convert_course_timezone(course: CourseEvent, target_tz_name: str | None) -> CourseEvent:
+    """Return a copy of CourseEvent with start and end converted to target timezone."""
+    tz = get_timezone_safely(target_tz_name)
+    start_conv = course.start.astimezone(tz)
+    end_conv = course.end.astimezone(tz)
+    return CourseEvent(
+        uid=course.uid,
+        name=course.name,
+        start=start_conv,
+        end=end_conv,
+        room=course.room,
+        teacher=course.teacher,
+        group=course.group,
+        description=course.description,
+        teams_link=course.teams_link,
+        event_type=course.event_type,
+    )
+
+
 def parse_event_details(summary: str, description: str, location: str) -> dict[str, str | None]:
     """Extract course name, teacher, room, and teams links from Hyperplanning fields."""
     details: dict[str, str | None] = {

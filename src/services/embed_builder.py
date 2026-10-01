@@ -43,7 +43,10 @@ def create_day_embed(
     teacher_label = t("teacher", lang=lang)
 
     for course in courses:
-        fields = [f"⏰ **{course.time_range_str}** ({course.duration_minutes} min)"]
+        ts_start = int(course.start.timestamp())
+        ts_end = int(course.end.timestamp())
+        time_display = f"⏰ <t:{ts_start}:t> - <t:{ts_end}:t> (`{course.time_range_str}` Paris • {course.duration_minutes} min)"
+        fields = [time_display]
         if course.room:
             fields.append(f"📍 {room_label}: `{course.room}`")
         if course.teacher:
@@ -107,10 +110,13 @@ def create_week_embed(
     for d, day_courses in sorted(courses_by_date.items()):
         day_lines = []
         for c in day_courses:
+            ts_start = int(c.start.timestamp())
+            ts_end = int(c.end.timestamp())
+            time_str = f"<t:{ts_start}:t>-<t:{ts_end}:t>"
             if c.event_type == "holiday":
                 day_lines.append(f"🎉 **{c.name}** ({c.room})")
             elif c.event_type == "work":
-                day_lines.append(f"💼 `{c.time_range_str}` **{c.name}** ({c.room})")
+                day_lines.append(f"💼 {time_str} (`{c.time_range_str}`) **{c.name}** ({c.room})")
             else:
                 meta_items = []
                 if c.teacher:
@@ -118,7 +124,7 @@ def create_week_embed(
                 if c.room:
                     meta_items.append(f"`{c.room}`")
                 meta_info = f" ({', '.join(meta_items)})" if meta_items else ""
-                day_lines.append(f"`{c.time_range_str}` **{c.name}**{meta_info}")
+                day_lines.append(f"{time_str} (`{c.time_range_str}`) **{c.name}**{meta_info}")
 
         embed.add_field(
             name=format_date_localized(d, lang=lang),
