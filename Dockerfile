@@ -26,12 +26,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && ln -fs /usr/share/zoneinfo/Europe/Paris /etc/localtime \
     && echo "Europe/Paris" > /etc/timezone
 
-# Copy virtual environment and app code from builder
-COPY --from=builder /app/.venv /app/.venv
-COPY --from=builder /app /app
-
 # Setup non-root botuser
 RUN useradd -m botuser && chown -R botuser:botuser /app
+
+# Copy virtual environment and app code from builder
+COPY --from=builder --chown=botuser:botuser /app /app
+
 USER botuser
 
 ENV PATH="/app/.venv/bin:$PATH"

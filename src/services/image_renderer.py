@@ -43,9 +43,9 @@ COLOR_ACCENT = (59, 130, 246)  # EPSI / Discord Blue #3B82F6
 def get_font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
     """Load a TrueType font supporting accented French Unicode characters."""
     font_names = (
-        ["Roboto-Bold.ttf", "segoeuib.ttf", "arialbd.ttf"]
+        ["Helvetica-Bold.ttf", "Roboto-Bold.ttf", "segoeuib.ttf", "arialbd.ttf"]
         if bold
-        else ["Roboto-Regular.ttf", "segoeui.ttf", "arial.ttf"]
+        else ["Helvetica.ttf", "Roboto-Regular.ttf", "segoeui.ttf", "arial.ttf"]
     )
 
     # 1. Try bundled font-roboto package
@@ -62,8 +62,10 @@ def get_font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont | ImageFon
     except Exception:
         pass
 
-    # 2. Try common system fonts on Windows / Linux
+    # 2. Try common system fonts or local Assets on Windows / Linux
     search_dirs = [
+        Path("Assets"),
+        Path(__file__).resolve().parent.parent.parent / "Assets",
         Path("C:/Windows/Fonts"),
         Path("/usr/share/fonts/truetype/dejavu"),
         Path("/usr/share/fonts/truetype"),

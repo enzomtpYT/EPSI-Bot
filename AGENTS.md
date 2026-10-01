@@ -21,17 +21,27 @@ This project follows strict engineering standards. Any AI assistant working on t
 ## 3. Architecture & Separation of Concerns
 - **Domain Modeling**: Keep timetable and event data strongly typed (e.g., using `pydantic` or dataclasses).
 - **ICS Parsing**: Maintain clean separation between network fetching, raw iCal parsing (`icalendar` / `recurring-ical-events`), and presentation layers.
+- **Timezone Handling & Dynamic Scaling**:
+  - Events originate in `Europe/Paris`. Always support user target timezones (all standard IANA names).
+  - Timezone names with spaces must be normalized (e.g., `"America/New York"` -> `"America/New_York"`).
+  - Both image rendering (`render_week_image`) and Web UI timetable grids must dynamically compute hour bounds (`start_hour`/`end_hour`) to support shifted timezones without course clipping or upward squishing.
+- **Schedule Sharing & Privacy**:
+  - Schedules can be shared via token or Discord user ID whitelist.
+  - When viewing another user's schedule (shared view), **Microsoft Teams links must always be hidden** (`teams_link = None`).
+  - For the schedule owner (non-shared view), provide clickable Teams action buttons and clear visual badges.
 - **Discord Presentation**:
   - Discord interactions must always be acknowledged promptly (use `await interaction.response.defer(ephemeral=...)` when doing network calls or image generation).
   - Provide both Discord rich embeds and generated card images.
   - Support interactive UI components (Buttons, Selects, Pagination) cleanly using Discord UI views.
 - **Database & Persistence**:
-  - Use SQLAlchemy / SQLModel or Peewee with SQLite fallback and PostgreSQL support.
+  - Use SQLAlchemy / SQLModel with SQLite fallback and PostgreSQL support.
   - Database access must be asynchronous or cleanly wrapped to never block the asyncio event loop.
 - **Error Handling**:
   - Always handle network timeouts, invalid iCal URLs, parsing glitches, and Discord permission issues gracefully with user-friendly messages.
 
 ## 4. Testing & Verification
 - **Framework**: `pytest` and `pytest-asyncio`.
-- All parsing logic, date/time math, timezone handling (Europe/Paris), and database persistence operations must be covered by automated unit tests in `tests/`.
+- All parsing logic, date/time math, timezone handling, sharing/privacy rules, and database persistence operations must be covered by automated unit tests in `tests/`.
 - Run tests via `uv run pytest`.
+- Verify formatting with `uv run ruff check . --fix && uv run ruff format .`.
+- Verify types with `uv run ty check` or `uvx ty check`.
