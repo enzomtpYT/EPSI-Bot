@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Sequence
 from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -61,6 +62,25 @@ def convert_course_timezone(course: CourseEvent, target_tz_name: str | None) -> 
         teams_link=course.teams_link,
         event_type=course.event_type,
     )
+
+
+def strip_teams_links(courses: Sequence[CourseEvent]) -> list[CourseEvent]:
+    """Return a copy of courses with teams_link stripped for privacy in shared views."""
+    return [
+        CourseEvent(
+            uid=c.uid,
+            name=c.name,
+            start=c.start,
+            end=c.end,
+            room=c.room,
+            teacher=c.teacher,
+            group=c.group,
+            description=c.description,
+            teams_link=None,
+            event_type=c.event_type,
+        )
+        for c in courses
+    ]
 
 
 def parse_event_details(summary: str, description: str, location: str) -> dict[str, str | None]:

@@ -217,6 +217,7 @@ async def get_schedule_week(
     target_url = url.strip() if url and url.strip() else None
     profile = None
     show_work = True
+    is_shared_view = False
 
     user = request.session.get("user")
     if user:
@@ -228,6 +229,7 @@ async def get_schedule_week(
             raise HTTPException(status_code=403, detail="Lien de partage invalide ou expiré.")
         target_url = owner.ical_url
         show_work = owner.show_work_days
+        is_shared_view = True
     elif owner_id:
         if not user:
             raise HTTPException(
@@ -247,6 +249,8 @@ async def get_schedule_week(
             )
         target_url = owner.ical_url
         show_work = owner.show_work_days
+        if user["discord_id"] != owner_id:
+            is_shared_view = True
     else:
         if not target_url and profile and profile.ical_url:
             target_url = profile.ical_url
@@ -317,7 +321,7 @@ async def get_schedule_week(
                     "school_end_time": course.end.strftime("%H:%M"),
                     "timezone": tz,
                     "school_timezone": "Europe/Paris",
-                    "teams_link": course.teams_link,
+                    "teams_link": None if is_shared_view else course.teams_link,
                     "event_type": course.event_type,
                 }
             )

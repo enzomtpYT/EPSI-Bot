@@ -26,7 +26,7 @@ from database import (
     update_user_full_settings,
 )
 from models import CourseEvent
-from services.ical_service import convert_course_timezone, get_timezone_safely
+from services.ical_service import convert_course_timezone, get_timezone_safely, strip_teams_links
 from web.app import create_web_app
 
 
@@ -275,6 +275,7 @@ async def test_web_sharing_api_endpoints() -> None:
             end=datetime(2026, 10, 12, 12, 30, tzinfo=ZoneInfo("Europe/Paris")),
             room="Lab 3",
             teacher="M. Smith",
+            teams_link="https://teams.microsoft.com/l/meetup-join/123",
         )
     ]
 
@@ -298,6 +299,8 @@ async def test_web_sharing_api_endpoints() -> None:
             assert first_event["end_time"] == "06:30"
             assert first_event["school_start_time"] == "09:00"
             assert first_event["school_end_time"] == "12:30"
+            # Privacy check: teams_link MUST be hidden for shared token viewers
+            assert first_event["teams_link"] is None
 
             # 2. Access with invalid token should be 403
             resp_bad_token = await anon_client.get(
@@ -362,6 +365,19 @@ async def test_web_sharing_api_endpoints() -> None:
                     f"/api/schedule/week?date=2026-10-12&owner_id={owner_id}",
                 )
                 assert resp_viewer_access.status_code == 200
+                viewer_events = resp_viewer_access.json()[0]
+                # Privacy check: teams_link MUST be hidden for shared whitelisted viewers
+                assert viewer_events[0]["teams_link"] is None
+
+                # Owner accesses own schedule -> teams_link MUST be visible
+                resp_owner_access = await owner_client.get(
+                    "/api/schedule/week?date=2026-10-12",
+                )
+                assert resp_owner_access.status_code == 200
+                owner_events = resp_owner_access.json()[0]
+                assert (
+                    owner_events[0]["teams_link"] == "https://teams.microsoft.com/l/meetup-join/123"
+                )
 
                 # Owner deletes viewer from whitelist
                 resp_del = await owner_client.delete(f"/api/share/whitelist/{viewer_id}")
@@ -443,3 +459,25 @@ async def test_discord_views_timezone_preservation() -> None:
         mock_render_week.assert_called_once()
         _, kwargs = mock_render_week.call_args
         assert kwargs.get("target_tz") == target_tz
+
+
+def test_strip_teams_links_and_view_privacy() -> None:
+    """Verify strip_teams_links clears teams_link and preserves all other fields."""
+    now_dt = datetime.now()
+    c = CourseEvent(
+        uid="c-privacy-1",
+        name="Algorithmique",
+        start=now_dt,
+        end=now_dt,
+        room="Amphi 1",
+        teacher="Prof X",
+        teams_link="https://teams.microsoft.com/l/meetup-join/secret",
+    )
+    stripped = strip_teams_links([c])
+    assert len(stripped) == 1
+    assert stripped[0].teams_link is None
+    assert stripped[0].name == "Algorithmique"
+    assert stripped[0].room == "Amphi 1"
+    assert stripped[0].teacher == "Prof X"
+    # Original should remain intact
+    assert c.teams_link == "https://teams.microsoft.com/l/meetup-join/secret"

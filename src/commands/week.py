@@ -11,7 +11,7 @@ from discord import app_commands
 from database import get_user_profile, is_user_authorized_to_view
 from services.embed_builder import create_week_embed
 from services.i18n import resolve_user_language
-from services.ical_service import get_week_schedule
+from services.ical_service import get_week_schedule, strip_teams_links
 from services.image_renderer import render_week_image
 from services.schedule_enricher import enrich_schedule
 from ui.views import WeekScheduleView
@@ -36,9 +36,11 @@ async def handle_week_command(
     target_url = url
     prefer_image = True if image is None else image
     show_work = profile.show_work_days if profile else True
+    is_shared_view = False
 
     # If viewing another user's schedule
     if user is not None and user.id != interaction.user.id:
+        is_shared_view = True
         authorized = await is_user_authorized_to_view(
             owner_id=user.id, viewer_id=interaction.user.id
         )
@@ -106,6 +108,9 @@ async def handle_week_command(
             show_work_days=show_work,
             lang=lang,
         )
+        if is_shared_view:
+            courses = strip_teams_links(courses)
+
         view = WeekScheduleView(
             ical_url=target_url,
             start_of_week=start_of_week,
@@ -114,6 +119,7 @@ async def handle_week_command(
             lang=lang,
             show_work_days=show_work,
             target_tz=viewer_tz,
+            hide_teams=is_shared_view,
         )
 
         if prefer_image:
