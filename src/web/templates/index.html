@@ -215,6 +215,30 @@
     </div>
 
     <script>
+      // Security helpers: XSS escaping & safe URL protocol validation
+      function escapeHtml(str) {
+        if (str === null || str === undefined) return "";
+        return String(str)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+
+      function safeHttpUrl(url) {
+        if (!url || typeof url !== "string") return null;
+        const clean = url.trim();
+        if (clean.startsWith("https://") || clean.startsWith("http://")) {
+          const lower = clean.toLowerCase();
+          if (lower.startsWith("javascript:") || lower.startsWith("data:") || lower.startsWith("vbscript:")) {
+            return null;
+          }
+          return clean;
+        }
+        return null;
+      }
+
       document.addEventListener("DOMContentLoaded", async function () {
         // DOM elements
         const userIdContainer = document.getElementById("userIdContainer");
@@ -1373,28 +1397,32 @@
               }
 
               let teamsButton = "";
-              if (block.data.teams_link) {
-                teamsButton = `<a href="${block.data.teams_link}" target="_blank" rel="noopener" class="desktop-teams-badge" title="Lien Teams"><i class="bi bi-microsoft-teams"></i> Teams</a>`;
+              const safeTeamsLink = safeHttpUrl(block.data.teams_link);
+              if (safeTeamsLink) {
+                teamsButton = `<a href="${escapeHtml(safeTeamsLink)}" target="_blank" rel="noopener noreferrer" class="desktop-teams-badge" title="Lien Teams"><i class="bi bi-microsoft-teams"></i> Teams</a>`;
               }
 
               let parisSubtime = "";
               if (block.data.school_start_time && block.data.school_start_time !== block.data.start_time) {
                 let schoolStart = currentLanguage === "en" ? convertTo12HourFormat(block.data.school_start_time) : block.data.school_start_time;
                 let schoolEnd = currentLanguage === "en" ? convertTo12HourFormat(block.data.school_end_time || "??:??") : (block.data.school_end_time || "??:??");
-                parisSubtime = `<span class="subtime">(${schoolStart} - ${schoolEnd} Paris)</span>`;
+                parisSubtime = `<span class="subtime">(${escapeHtml(schoolStart)} - ${escapeHtml(schoolEnd)} Paris)</span>`;
               }
 
+              const teacherName = block.data.teacher || translations[currentLanguage].teacher;
               const teacherHtml =
                 block.data.event_type === "holiday" || block.data.event_type === "work"
                   ? ""
-                  : `<div class="teacher" title="${block.data.teacher || ''}">${block.data.teacher || translations[currentLanguage].teacher}</div>`;
+                  : `<div class="teacher" title="${escapeHtml(block.data.teacher || '')}">${escapeHtml(teacherName)}</div>`;
 
-              const roomHtml = block.data.room ? `<span class="room" title="${block.data.room}">${block.data.room}</span>` : "";
+              const roomHtml = block.data.room ? `<span class="room" title="${escapeHtml(block.data.room)}">${escapeHtml(block.data.room)}</span>` : "";
+
+              const eventTitle = block.data.name || translations[currentLanguage].untitled;
 
               scheduleItem.innerHTML = `
                 <div class="item-header">
                   <div class="time-col">
-                    <span class="time">${startTime} - ${endTime}</span>
+                    <span class="time">${escapeHtml(startTime)} - ${escapeHtml(endTime)}</span>
                     ${parisSubtime}
                   </div>
                   <div class="header-meta">
@@ -1402,7 +1430,7 @@
                     ${teamsButton}
                   </div>
                 </div>
-                <div class="name" title="${block.data.name || ''}">${typeIcon}${block.data.name || translations[currentLanguage].untitled}</div>
+                <div class="name" title="${escapeHtml(block.data.name || '')}">${typeIcon}${escapeHtml(eventTitle)}</div>
                 ${teacherHtml}
               `;
               container.appendChild(scheduleItem);
@@ -1504,25 +1532,28 @@
             if (item.school_start_time && item.school_start_time !== item.start_time) {
               let schoolStart = currentLanguage === "en" ? convertTo12HourFormat(item.school_start_time) : item.school_start_time;
               let schoolEnd = currentLanguage === "en" ? convertTo12HourFormat(item.school_end_time || "??:??") : (item.school_end_time || "??:??");
-              parisSubtime = ` <span style="font-size:0.75rem; font-weight:normal; opacity:0.8; margin-left:4px;">(${schoolStart} - ${schoolEnd} Paris)</span>`;
+              parisSubtime = ` <span style="font-size:0.75rem; font-weight:normal; opacity:0.8; margin-left:4px;">(${escapeHtml(schoolStart)} - ${escapeHtml(schoolEnd)} Paris)</span>`;
             }
 
             let teamsBtn = "";
-            if (item.teams_link) {
-              teamsBtn = `<a href="${item.teams_link}" target="_blank" rel="noopener" class="mobile-teams-btn" title="Teams"><i class="bi bi-microsoft-teams"></i> Teams</a>`;
+            const safeTeamsMobileUrl = safeHttpUrl(item.teams_link);
+            if (safeTeamsMobileUrl) {
+              teamsBtn = `<a href="${escapeHtml(safeTeamsMobileUrl)}" target="_blank" rel="noopener noreferrer" class="mobile-teams-btn" title="Teams"><i class="bi bi-microsoft-teams"></i> Teams</a>`;
             }
 
             let roomPill = "";
             if (item.room && item.event_type !== "holiday" && item.event_type !== "work") {
-              roomPill = `<span class="mobile-meta-pill" title="${item.room}"><i class="bi bi-geo-alt"></i> ${item.room}</span>`;
+              const escapedRoom = escapeHtml(item.room);
+              roomPill = `<span class="mobile-meta-pill" title="${escapedRoom}"><i class="bi bi-geo-alt"></i> ${escapedRoom}</span>`;
             }
 
             let teacherPill = "";
             if (item.teacher && item.event_type !== "holiday" && item.event_type !== "work") {
-              teacherPill = `<span class="mobile-meta-pill" title="${item.teacher}"><i class="bi bi-person"></i> ${item.teacher}</span>`;
+              const escapedTeacher = escapeHtml(item.teacher);
+              teacherPill = `<span class="mobile-meta-pill" title="${escapedTeacher}"><i class="bi bi-person"></i> ${escapedTeacher}</span>`;
             }
 
-            const itemName = item.name || translations[currentLanguage].untitled;
+            const itemName = escapeHtml(item.name || translations[currentLanguage].untitled);
 
             let metaHtml = "";
             if (roomPill || teacherPill || teamsBtn) {
@@ -1531,8 +1562,8 @@
 
             card.innerHTML = `
               <div class="mobile-card-top">
-                <span class="mobile-card-time">${typeIcon}${startTime} - ${endTime}${parisSubtime}</span>
-                ${durationStr ? `<span class="mobile-card-duration">${durationStr}</span>` : ""}
+                <span class="mobile-card-time">${typeIcon}${escapeHtml(startTime)} - ${escapeHtml(endTime)}${parisSubtime}</span>
+                ${durationStr ? `<span class="mobile-card-duration">${escapeHtml(durationStr)}</span>` : ""}
               </div>
               <div class="mobile-card-title">${itemName}</div>
               ${metaHtml}

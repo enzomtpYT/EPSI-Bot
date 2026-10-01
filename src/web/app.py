@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -33,6 +34,8 @@ def create_web_app() -> FastAPI:
         redoc_url=None,
     )
 
+    is_testing = bool(os.getenv("PYTEST_CURRENT_TEST"))
+
     # Session middleware for Discord OAuth2 state
     app.add_middleware(
         SessionMiddleware,
@@ -40,17 +43,39 @@ def create_web_app() -> FastAPI:
         session_cookie="epsi_session",
         max_age=86400 * 30,  # 30 days
         same_site="lax",
-        https_only=False,  # Set to true in strict HTTPS production if behind reverse proxy
+        https_only=False if is_testing else settings.web_base_url.startswith("https://"),
     )
 
-    # CORS middleware
+    # Restrict CORS to authorized origins (avoid wildcard with credentials)
+    allowed_origins = [settings.web_base_url.rstrip("/")]
+    if "localhost" in settings.web_base_url or "127.0.0.1" in settings.web_base_url:
+        allowed_origins.extend(["http://localhost:8080", "http://127.0.0.1:8080"])
+
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=sorted(list(set(allowed_origins))),
         allow_credentials=True,
-        allow_methods=["*"],
+        allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
         allow_headers=["*"],
     )
+
+    # Security Headers Middleware
+    @app.middleware("http")
+    async def add_security_headers(request: Request, call_next):  # type: ignore[no-untyped-def]
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "SAMEORIGIN"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = "geolocation=(), camera=(), microphone=()"
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+            "font-src 'self' https://cdn.jsdelivr.net data:; "
+            "img-src 'self' data: https://cdn.discordapp.com; "
+            "connect-src 'self';"
+        )
+        return response
 
     # Mount static assets
     if STATIC_DIR.exists():

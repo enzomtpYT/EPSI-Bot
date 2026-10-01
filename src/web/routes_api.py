@@ -23,6 +23,7 @@ from database import (
 )
 from services.ical_service import convert_course_timezone, get_week_schedule
 from services.schedule_enricher import enrich_schedule
+from services.security import validate_safe_url
 
 logger = logging.getLogger(__name__)
 
@@ -58,9 +59,16 @@ async def update_settings(payload: UpdateSettingsRequest, request: Request) -> d
         )
 
     discord_id = user["discord_id"]
+    safe_ical_url = payload.ical_url
+    if safe_ical_url and safe_ical_url.strip():
+        try:
+            safe_ical_url = validate_safe_url(safe_ical_url)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=f"Lien iCal invalide : {e}")
+
     updated_profile = await update_user_full_settings(
         discord_id,
-        ical_url=payload.ical_url,
+        ical_url=safe_ical_url,
         daily_notifications=payload.daily_notifications,
         weekly_notifications=payload.weekly_notifications,
         prefer_image=payload.prefer_image,
@@ -265,14 +273,11 @@ async def get_schedule_week(
             detail="Aucun lien iCal fourni. Veuillez entrer un lien ou vous connecter.",
         )
 
-    # Convert webcal:// to https://
-    if target_url.startswith("webcal://"):
-        target_url = "https://" + target_url[len("webcal://") :]
-
-    if not (target_url.startswith("http://") or target_url.startswith("https://")):
-        raise HTTPException(
-            status_code=400, detail="Format d'URL iCal invalide (doit commencer par https://)."
-        )
+    # Validate against SSRF and unsafe schemes
+    try:
+        target_url = validate_safe_url(target_url)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Lien iCal invalide ou interdit : {e}")
 
     # 2. Parse reference date
     try:

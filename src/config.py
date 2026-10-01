@@ -2,13 +2,28 @@
 
 from __future__ import annotations
 
+import logging
 import os
+import secrets
 from pathlib import Path
 
 from dotenv import load_dotenv
 from pydantic import BaseModel
 
+logger = logging.getLogger(__name__)
+
 load_dotenv()
+
+DEFAULT_INSECURE_SECRET = "epsi-bot-super-secret-key-change-in-production"
+_raw_secret = os.getenv("SESSION_SECRET", "").strip()
+if not _raw_secret or _raw_secret == DEFAULT_INSECURE_SECRET:
+    logger.warning(
+        "SESSION_SECRET is unset or using default insecure placeholder. "
+        "Generating a cryptographically secure random key for session security."
+    )
+    _effective_session_secret = secrets.token_hex(32)
+else:
+    _effective_session_secret = _raw_secret
 
 
 class Settings(BaseModel):
@@ -32,9 +47,7 @@ class Settings(BaseModel):
     discord_redirect_uri: str = os.getenv(
         "DISCORD_REDIRECT_URI", "http://localhost:8080/auth/callback"
     )
-    session_secret: str = os.getenv(
-        "SESSION_SECRET", "epsi-bot-super-secret-key-change-in-production"
-    )
+    session_secret: str = _effective_session_secret
 
     @property
     def sqlite_database_url(self) -> str:

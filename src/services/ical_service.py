@@ -14,6 +14,7 @@ from icalendar import Calendar
 
 from config import settings
 from models import CourseEvent
+from services.security import MAX_ICAL_DOWNLOAD_BYTES, validate_safe_url
 
 logger = logging.getLogger(__name__)
 
@@ -203,11 +204,14 @@ def parse_ical_events_in_range(
 
 
 async def fetch_ical_content(url: str, force_refresh: bool = False) -> str:
-    """Fetch raw iCal content with caching and timeout handling."""
+    """Fetch raw iCal content with SSRF validation, size bounding, and caching."""
+    # 1. Validate URL against SSRF and unsafe protocols
+    safe_url = validate_safe_url(url)
+
     now = datetime.now(UTC)
 
-    if not force_refresh and url in _ICAL_CACHE:
-        cached_time, cached_content = _ICAL_CACHE[url]
+    if not force_refresh and safe_url in _ICAL_CACHE:
+        cached_time, cached_content = _ICAL_CACHE[safe_url]
         if (now - cached_time).total_seconds() < CACHE_TTL_SECONDS:
             logger.info("Serving iCal from in-memory cache.")
             return cached_content
@@ -215,11 +219,21 @@ async def fetch_ical_content(url: str, force_refresh: bool = False) -> str:
     logger.info("Fetching iCal content from source...")
     timeout = aiohttp.ClientTimeout(total=20)
     async with aiohttp.ClientSession(timeout=timeout) as session:
-        async with session.get(url) as response:
+        async with session.get(safe_url, allow_redirects=False) as response:
             if response.status != 200:
                 raise ValueError(f"Failed to fetch iCal (HTTP {response.status})")
-            text = await response.text(encoding="utf-8")
-            _ICAL_CACHE[url] = (now, text)
+
+            # Stream response chunks up to MAX_ICAL_DOWNLOAD_BYTES (DoS protection)
+            content_bytes = bytearray()
+            async for chunk in response.content.iter_chunked(64 * 1024):
+                content_bytes.extend(chunk)
+                if len(content_bytes) > MAX_ICAL_DOWNLOAD_BYTES:
+                    raise ValueError(
+                        f"Le fichier iCal dépasse la taille maximale autorisée ({MAX_ICAL_DOWNLOAD_BYTES // (1024 * 1024)} Mo)."
+                    )
+
+            text = content_bytes.decode("utf-8", errors="replace")
+            _ICAL_CACHE[safe_url] = (now, text)
             return text
 
 

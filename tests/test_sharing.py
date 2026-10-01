@@ -88,7 +88,16 @@ async def login_client(client: AsyncClient, user_id: int, username: str = "TestU
         patch("config.settings.discord_client_id", "test_id"),
         patch("config.settings.discord_client_secret", "test_secret"),
     ):
-        resp = await client.get(f"/auth/callback?code=code_{user_id}")
+        # 1. Initiate login to establish CSRF state
+        resp_login = await client.get("/auth/login", follow_redirects=False)
+        assert resp_login.status_code in (302, 303, 307)
+        from urllib.parse import parse_qs, urlsplit
+
+        login_query = parse_qs(urlsplit(resp_login.headers["location"]).query)
+        oauth_state = login_query["state"][0]
+
+        # 2. Complete callback with state
+        resp = await client.get(f"/auth/callback?code=code_{user_id}&state={oauth_state}")
         assert resp.status_code in (302, 303, 307)
 
 

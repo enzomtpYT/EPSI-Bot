@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import secrets
 from urllib.parse import quote_plus
 
 import aiohttp
@@ -20,11 +21,15 @@ DISCORD_API_BASE = "https://discord.com/api"
 
 
 @auth_router.get("/auth/login")
-async def login() -> RedirectResponse:
-    """Redirect user to Discord OAuth2 authorization URL."""
+async def login(request: Request) -> RedirectResponse:
+    """Redirect user to Discord OAuth2 authorization URL with CSRF state token."""
     if not settings.discord_client_id or not settings.discord_client_secret:
         logger.warning("Discord OAuth2 credentials not set in environment.")
         return RedirectResponse(url="/?error=oauth_not_configured")
+
+    # Generate cryptographically secure CSRF state token
+    state = secrets.token_urlsafe(32)
+    request.session["oauth_state"] = state
 
     redirect_uri = quote_plus(settings.discord_redirect_uri)
     auth_url = (
@@ -33,15 +38,25 @@ async def login() -> RedirectResponse:
         f"&redirect_uri={redirect_uri}"
         f"&response_type=code"
         f"&scope=identify"
+        f"&state={state}"
     )
     return RedirectResponse(url=auth_url)
 
 
 @auth_router.get("/auth/callback")
 async def callback(
-    request: Request, code: str | None = None, error: str | None = None
+    request: Request,
+    code: str | None = None,
+    error: str | None = None,
+    state: str | None = None,
 ) -> RedirectResponse:
-    """Handle OAuth2 callback from Discord."""
+    """Handle OAuth2 callback from Discord with CSRF state verification."""
+    # 1. CSRF State validation
+    stored_state = request.session.pop("oauth_state", None)
+    if not stored_state or not state or stored_state != state:
+        logger.warning("OAuth2 callback rejected: CSRF state parameter missing or mismatched.")
+        return RedirectResponse(url="/?error=csrf_state_invalid")
+
     if error or not code:
         logger.warning(f"OAuth2 callback error or missing code: {error}")
         return RedirectResponse(url="/?error=auth_failed")

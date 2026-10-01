@@ -157,8 +157,16 @@ async def test_auth_callback_and_settings_flow():
         patch("config.settings.discord_client_secret", "test_client_secret"),
     ):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            # 1. Trigger callback
-            resp_cb = await client.get("/auth/callback?code=mock_code")
+            # 1. Initiate login to establish CSRF state
+            resp_login = await client.get("/auth/login", follow_redirects=False)
+            assert resp_login.status_code in (302, 303, 307)
+            from urllib.parse import parse_qs, urlsplit
+
+            login_query = parse_qs(urlsplit(resp_login.headers["location"]).query)
+            oauth_state = login_query["state"][0]
+
+            # 2. Trigger callback with state
+            resp_cb = await client.get(f"/auth/callback?code=mock_code&state={oauth_state}")
             assert resp_cb.status_code in (302, 303, 307)
 
             # 2. Check /api/me

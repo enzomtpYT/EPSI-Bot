@@ -18,6 +18,15 @@ from services.i18n import (
 )
 
 
+def safe_truncate(text: str, max_len: int) -> str:
+    """Safely truncate text to max_len to satisfy Discord Embed limits."""
+    if not text:
+        return ""
+    if len(text) <= max_len:
+        return text
+    return text[: max_len - 3] + "..."
+
+
 def create_day_embed(
     target_date: date, courses: Sequence[CourseEvent], lang: str = "fr"
 ) -> discord.Embed:
@@ -66,8 +75,8 @@ def create_day_embed(
             prefix = "📘"
 
         embed.add_field(
-            name=f"{prefix} {course.name}",
-            value="\n".join(fields),
+            name=safe_truncate(f"{prefix} {course.name}", 250),
+            value=safe_truncate("\n".join(fields), 1000),
             inline=False,
         )
 
@@ -131,8 +140,10 @@ def create_week_embed(
                 day_lines.append(f"{time_str} (`{c.time_range_str}` Paris) **{c.name}**{meta_info}")
 
         embed.add_field(
-            name=format_date_localized(d, lang=lang),
-            value="\n".join(day_lines) if day_lines else t("no_classes_day", lang=lang),
+            name=safe_truncate(format_date_localized(d, lang=lang), 250),
+            value=safe_truncate(
+                "\n".join(day_lines) if day_lines else t("no_classes_day", lang=lang), 1000
+            ),
             inline=False,
         )
 
@@ -192,8 +203,8 @@ def create_now_embed(
             )
 
         embed.add_field(
-            name=current_header,
-            value="\n".join(details),
+            name=safe_truncate(current_header, 250),
+            value=safe_truncate("\n".join(details), 1000),
             inline=False,
         )
     else:
@@ -221,8 +232,8 @@ def create_now_embed(
 
         upcoming_header = t("now_upcoming_classes", lang=lang) + " :"
         embed.add_field(
-            name=upcoming_header,
-            value="\n".join(next_lines),
+            name=safe_truncate(upcoming_header, 250),
+            value=safe_truncate("\n".join(next_lines), 1000),
             inline=False,
         )
 
