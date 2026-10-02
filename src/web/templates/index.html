@@ -1,0 +1,1648 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark-mode">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EPSI Emploi du temps</title>
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#333333" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="EPSI EDT" />
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <div class="app-container">
+      <header class="header">
+        <h1>EPSI Emploi du temps</h1>
+        <div class="fixed-toggles">
+          <!-- Discord Authentication / Profile Badge -->
+          <div id="discordAuthContainer">
+            <a id="discordLoginBtn" href="/auth/login" class="discord-btn" title="Connexion Discord">
+              <i class="bi bi-discord"></i> <span class="btn-text">Connexion</span>
+            </a>
+            <button id="userProfileBtn" class="user-profile-btn" style="display: none;" title="Paramètres du compte">
+              <img id="userAvatar" src="" alt="Avatar" class="user-avatar" />
+              <span id="userName" class="user-name"></span>
+            </button>
+          </div>
+          <!-- Theme toggle button -->
+          <button id="themeToggle" class="theme-toggle" aria-label="Toggle theme">
+            <i id="themeIcon" class="bi bi-sun-fill"></i>
+          </button>
+          <!-- Language toggle button -->
+          <button id="langToggle" class="lang-toggle" aria-label="Toggle language">
+            <span id="langText">FR</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- iCal URL input (shown if not stored and not logged in) -->
+      <div id="userIdContainer" class="card hidden">
+        <h5 id="welcomeTitle">Bienvenue</h5>
+        <p id="welcomeText">Veuillez entrer votre lien iCal Hyperplanning pour continuer, ou connectez-vous avec Discord.</p>
+        <div class="input-group">
+          <input type="url" class="input-field" id="newUserId" placeholder="https://.../ical.ics" />
+          <button class="btn btn-primary" type="button" id="saveUserId">Enregistrer</button>
+        </div>
+      </div>
+
+      <!-- Week selector with navigation buttons -->
+      <div class="controls-toolbar">
+        <input type="hidden" id="weekDate" />
+        <div class="schedule-switcher-container" id="scheduleSwitcherContainer" style="display:none;">
+          <select id="scheduleSwitcher" class="input-field schedule-switcher-select"></select>
+        </div>
+        <button class="btn btn-secondary nav-btn" id="prevWeekBtn">
+          <i class="bi bi-arrow-left"></i> <span class="btn-text">Semaine précédente</span>
+        </button>
+        <button class="btn btn-secondary nav-btn" id="refreshBtn" title="Sans cache">
+          <i class="bi bi-arrow-clockwise"></i> <span class="btn-text" id="refreshBtnText">Actualiser</span>
+        </button>
+        <button class="btn btn-secondary nav-btn" type="button" id="changeUserId">
+          <i class="bi bi-link-45deg"></i> <span class="btn-text" id="changeUserText">Changer d'iCal</span>
+        </button>
+        <button class="btn btn-secondary nav-btn" type="button" id="datePickerBtn">
+          <i class="bi bi-calendar3"></i> <span class="btn-text" id="datePickerBtnText">Choisir semaine</span>
+        </button>
+        <button class="btn btn-secondary nav-btn" id="timezoneToggleBtn" title="Basculer fuseau horaire / Toggle timezone">
+          <i class="bi bi-globe"></i> <span id="timezoneLabel">Europe/Paris</span>
+        </button>
+        <button class="btn btn-secondary nav-btn" id="nextWeekBtn">
+          <span class="btn-text">Semaine suivante</span> <i class="bi bi-arrow-right"></i>
+        </button>
+      </div>
+
+      <!-- Selected Week Info -->
+      <div class="alert alert-info" id="selectedWeek" role="alert">Semaine du...</div>
+
+      <!-- Mobile day tabs navigation -->
+      <div class="mobile-tabs" id="daysTabs">
+        <!-- Day tabs inserted here by JS -->
+      </div>
+
+      <!-- Main Schedule Grid -->
+      <div id="scheduleContainer" class="schedule-grid">
+        <div class="spinner-container" style="grid-column: 1 / -1;">
+          <div class="spinner"></div>
+          <p id="initial-message">Chargement de l'emploi du temps...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Custom Week Picker Modal -->
+    <div id="weekPickerModal" class="modal-overlay">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 id="weekPickerTitle">Choisir une semaine</h5>
+          <button type="button" class="close-btn" id="closeWeekPicker">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="month-selector">
+            <button type="button" class="btn btn-secondary btn-icon" id="prevMonth">&lt;</button>
+            <span id="currentMonthYear">Octobre 2026</span>
+            <button type="button" class="btn btn-secondary btn-icon" id="nextMonth">&gt;</button>
+          </div>
+          <div class="calendar-grid" id="calendarGrid">
+            <!-- Calendar generated here -->
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="cancelWeekPicker">Annuler</button>
+          <button type="button" class="btn btn-primary" id="selectWeek" disabled>Sélectionner</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- User Settings Modal -->
+    <div id="settingsModal" class="modal-overlay">
+      <div class="modal-content settings-modal-content">
+        <div class="modal-header">
+          <h5 id="settingsModalTitle"><i class="bi bi-person-gear"></i> Paramètres du compte</h5>
+          <button type="button" class="close-btn" id="closeSettingsModal">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="settingsIcalUrl" id="settingsIcalLabel">Lien iCal Hyperplanning</label>
+            <input type="url" id="settingsIcalUrl" class="input-field" placeholder="https://.../ical.ics" />
+          </div>
+
+          <div class="form-group">
+            <label for="settingLanguage" id="settingLangLabel">Langue du bot Discord</label>
+            <select id="settingLanguage" class="input-field">
+              <option value="fr">🇫🇷 Français</option>
+              <option value="en">🇬🇧 English</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="settingTimezone" id="settingTzLabel">Fuseau horaire</label>
+            <input type="text" id="timezoneSearch" class="input-field" placeholder="🔍 Rechercher un fuseau... (ex: Chicago, Tokyo)" style="margin-bottom: 6px; font-size: 0.85rem;" />
+            <select id="settingTimezone" class="input-field" style="font-size: 0.85rem; max-height: 180px;">
+              <option value="Europe/Paris">Europe/Paris</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label id="settingsNotifLabel">Notifications Discord</label>
+            <div class="form-switch">
+              <span id="dailyNotifLabel">Rappels quotidiens (06h00)</span>
+              <label class="switch">
+                <input type="checkbox" id="settingDailyNotif" />
+                <span class="slider"></span>
+              </label>
+            </div>
+            <div class="form-switch">
+              <span id="weeklyNotifLabel">Rappels hebdomadaires (Lundi 06h00)</span>
+              <label class="switch">
+                <input type="checkbox" id="settingWeeklyNotif" />
+                <span class="slider"></span>
+              </label>
+            </div>
+            <div class="form-switch">
+              <span id="preferImageLabel">Format d'affichage Discord (Image)</span>
+              <label class="switch">
+                <input type="checkbox" id="settingPreferImage" checked />
+                <span class="slider"></span>
+              </label>
+            </div>
+            <div class="form-switch">
+              <span id="workDaysLabel">Jours en entreprise (Alternance)</span>
+              <label class="switch">
+                <input type="checkbox" id="settingWorkDays" checked />
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Schedule Sharing Section -->
+          <div class="form-group sharing-section" id="sharingSectionGroup" style="border-top: 1px solid var(--border-color); padding-top: 14px; margin-top: 14px;">
+            <label style="font-weight: 700;" id="shareSectionTitle"><i class="bi bi-share"></i> Partage d'emploi du temps</label>
+            <div class="form-switch" style="margin-top: 6px;">
+              <span id="shareToggleLabel">Activer le partage</span>
+              <label class="switch">
+                <input type="checkbox" id="settingShareEnabled" />
+                <span class="slider"></span>
+              </label>
+            </div>
+            <div id="shareSettingsDetails" style="display: none; margin-top: 12px;">
+              <label style="font-size: 0.85rem; font-weight: 600;" id="shareSecretLinkLabel">Lien secret Web</label>
+              <div style="display: flex; gap: 8px; margin-bottom: 12px; margin-top: 4px;">
+                <input type="text" id="shareSecretLink" class="input-field" readonly style="font-size: 0.8rem; background: var(--bg-color);" />
+                <button type="button" class="btn btn-secondary btn-icon" id="copyShareLinkBtn" title="Copier"><i class="bi bi-clipboard"></i></button>
+                <button type="button" class="btn btn-secondary btn-icon" id="regenShareLinkBtn" title="Régénérer"><i class="bi bi-arrow-repeat"></i></button>
+              </div>
+              <label style="font-size: 0.85rem; font-weight: 600;" id="shareWhitelistLabel">Utilisateurs Discord autorisés (ID)</label>
+              <div style="display: flex; gap: 8px; margin-bottom: 8px; margin-top: 4px;">
+                <input type="text" id="newWhitelistId" class="input-field" placeholder="ex: 123456789012345678" style="font-size: 0.85rem;" />
+                <button type="button" class="btn btn-primary" id="addWhitelistBtn" style="padding: 6px 12px; font-size: 0.85rem; white-space: nowrap;"><i class="bi bi-plus-lg"></i> <span id="addBtnText">Ajouter</span></button>
+              </div>
+              <div id="whitelistList" class="whitelist-list" style="max-height: 120px; overflow-y: auto;"></div>
+            </div>
+          </div>
+
+          <div id="settingsSaveStatus" style="display: none;" class="alert alert-info">Modifications enregistrées !</div>
+        </div>
+        <div class="modal-footer" style="justify-content: space-between;">
+          <a href="/auth/logout" class="btn btn-danger" id="logoutBtn"><i class="bi bi-box-arrow-right"></i> Déconnexion</a>
+          <button type="button" class="btn btn-primary" id="saveSettingsBtn"><i class="bi bi-check-lg"></i> Enregistrer</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Security helpers: XSS escaping & safe URL protocol validation
+      function escapeHtml(str) {
+        if (str === null || str === undefined) return "";
+        return String(str)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+
+      function safeHttpUrl(url) {
+        if (!url || typeof url !== "string") return null;
+        const clean = url.trim();
+        if (clean.startsWith("https://") || clean.startsWith("http://")) {
+          const lower = clean.toLowerCase();
+          if (lower.startsWith("javascript:") || lower.startsWith("data:") || lower.startsWith("vbscript:")) {
+            return null;
+          }
+          return clean;
+        }
+        return null;
+      }
+
+      document.addEventListener("DOMContentLoaded", async function () {
+        // DOM elements
+        const userIdContainer = document.getElementById("userIdContainer");
+        const newUserId = document.getElementById("newUserId");
+        const saveUserId = document.getElementById("saveUserId");
+        const changeUserId = document.getElementById("changeUserId");
+        const changeUserText = document.getElementById("changeUserText");
+        const weekDate = document.getElementById("weekDate");
+        const scheduleContainer = document.getElementById("scheduleContainer");
+        const daysTabs = document.getElementById("daysTabs");
+        const initialMessage = document.getElementById("initial-message");
+        const themeToggle = document.getElementById("themeToggle");
+        const themeIcon = document.getElementById("themeIcon");
+        const langToggle = document.getElementById("langToggle");
+        const langText = document.getElementById("langText");
+        const prevWeekBtn = document.getElementById("prevWeekBtn");
+        const nextWeekBtn = document.getElementById("nextWeekBtn");
+        const datePickerBtn = document.getElementById("datePickerBtn");
+        const welcomeTitle = document.getElementById("welcomeTitle");
+        const welcomeText = document.getElementById("welcomeText");
+
+        // Schedule Switcher & Timezone DOM
+        const scheduleSwitcherContainer = document.getElementById("scheduleSwitcherContainer");
+        const scheduleSwitcher = document.getElementById("scheduleSwitcher");
+        const timezoneToggleBtn = document.getElementById("timezoneToggleBtn");
+        const timezoneLabel = document.getElementById("timezoneLabel");
+
+        // Auth & Settings DOM
+        const discordLoginBtn = document.getElementById("discordLoginBtn");
+        const userProfileBtn = document.getElementById("userProfileBtn");
+        const userAvatar = document.getElementById("userAvatar");
+        const userName = document.getElementById("userName");
+        const settingsModal = document.getElementById("settingsModal");
+        const closeSettingsModal = document.getElementById("closeSettingsModal");
+        const saveSettingsBtn = document.getElementById("saveSettingsBtn");
+        const settingsIcalUrl = document.getElementById("settingsIcalUrl");
+        const settingLanguage = document.getElementById("settingLanguage");
+        const settingTimezone = document.getElementById("settingTimezone");
+        const settingDailyNotif = document.getElementById("settingDailyNotif");
+        const settingWeeklyNotif = document.getElementById("settingWeeklyNotif");
+        const settingPreferImage = document.getElementById("settingPreferImage");
+        const settingWorkDays = document.getElementById("settingWorkDays");
+        const settingShareEnabled = document.getElementById("settingShareEnabled");
+        const shareSettingsDetails = document.getElementById("shareSettingsDetails");
+        const shareSecretLink = document.getElementById("shareSecretLink");
+        const copyShareLinkBtn = document.getElementById("copyShareLinkBtn");
+        const regenShareLinkBtn = document.getElementById("regenShareLinkBtn");
+        const newWhitelistId = document.getElementById("newWhitelistId");
+        const addWhitelistBtn = document.getElementById("addWhitelistBtn");
+        const whitelistList = document.getElementById("whitelistList");
+        const settingsSaveStatus = document.getElementById("settingsSaveStatus");
+        const timezoneSearch = document.getElementById("timezoneSearch");
+
+        // Week picker modal elements
+        const weekPickerModal = document.getElementById("weekPickerModal");
+        const weekPickerTitle = document.getElementById("weekPickerTitle");
+        const closeWeekPicker = document.getElementById("closeWeekPicker");
+        const cancelWeekPicker = document.getElementById("cancelWeekPicker");
+        const selectWeek = document.getElementById("selectWeek");
+        const prevMonth = document.getElementById("prevMonth");
+        const nextMonth = document.getElementById("nextMonth");
+        const currentMonthYear = document.getElementById("currentMonthYear");
+        const calendarGrid = document.getElementById("calendarGrid");
+
+        // Translation dictionaries
+        const translations = {
+          fr: {
+            title: "EPSI Emploi du temps",
+            welcome: "Bienvenue",
+            userIdPrompt: "Veuillez entrer votre lien iCal Hyperplanning pour continuer, ou connectez-vous avec Discord.",
+            enterUserId: "Lien iCal (https://.../ical.ics)",
+            save: "Enregistrer",
+            prevWeek: "Semaine précédente",
+            nextWeek: "Semaine suivante",
+            changeUser: "Changer d'iCal",
+            refresh: "Actualiser",
+            pickWeek: "Choisir semaine",
+            weekPickerTitle: "Choisir une semaine",
+            cancel: "Annuler",
+            select: "Sélectionner",
+            weekOf: "Semaine du",
+            to: "au",
+            loading: "Chargement de l'emploi du temps...",
+            enterIdToShow: "Veuillez entrer votre lien iCal pour afficher l'emploi du temps",
+            errorFetching: "Erreur lors de la récupération de l'emploi du temps. Veuillez vérifier votre lien.",
+            noClass: "Aucun cours prévu",
+            days: ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi"],
+            room: "Salle non spécifiée",
+            teacher: "Enseignant non spécifié",
+            untitled: "Sans titre",
+            breakLabel: "Pause",
+            enjoyDay: "Profitez de votre journée !",
+            loginDiscord: "Connexion",
+            settingsTitle: "Paramètres du compte",
+            settingsSaved: "Paramètres enregistrés !",
+            dailyNotif: "Rappels quotidiens (06h00)",
+            weeklyNotif: "Rappels hebdomadaires (Lundi 06h00)",
+            preferImage: "Format d'affichage Discord (Image)",
+            workDays: "Jours en entreprise (Alternance)",
+            botLanguage: "Langue du bot Discord",
+            logout: "Déconnexion",
+            mySchedule: "Mon emploi du temps",
+            sharedSchedule: "Planning de",
+            copied: "Lien copié !",
+            localTime: "Heure locale",
+            schoolTime: "Heure école (Paris)",
+            autoTz: "Automatique (Navigateur)",
+          },
+          en: {
+            title: "EPSI Schedule",
+            welcome: "Welcome",
+            userIdPrompt: "Please enter your Hyperplanning iCal URL to continue, or sign in with Discord.",
+            enterUserId: "iCal link (https://.../ical.ics)",
+            save: "Save",
+            prevWeek: "Previous week",
+            nextWeek: "Next week",
+            changeUser: "Change iCal",
+            refresh: "Refresh",
+            pickWeek: "Pick week",
+            weekPickerTitle: "Pick a week",
+            cancel: "Cancel",
+            select: "Select",
+            weekOf: "Week of",
+            to: "to",
+            loading: "Loading schedule...",
+            enterIdToShow: "Please enter your iCal URL to display the schedule",
+            errorFetching: "Error fetching schedule data. Please check your iCal URL.",
+            noClass: "No classes scheduled",
+            breakLabel: "Break",
+            enjoyDay: "Enjoy your day off!",
+            days: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+            room: "Room not specified",
+            teacher: "Teacher not specified",
+            untitled: "Untitled",
+            loginDiscord: "Login",
+            settingsTitle: "Account Settings",
+            settingsSaved: "Settings saved!",
+            dailyNotif: "Daily reminders (06:00)",
+            weeklyNotif: "Weekly reminders (Mon 06:00)",
+            preferImage: "Discord display format (Image)",
+            workDays: "Company work days (Apprenticeship)",
+            botLanguage: "Discord Bot Language",
+            logout: "Log out",
+            mySchedule: "My schedule",
+            sharedSchedule: "Schedule of",
+            copied: "Link copied!",
+            localTime: "Local time",
+            schoolTime: "School time (Paris)",
+            autoTz: "Automatic (Browser)",
+          },
+        };
+
+        // State variables
+        let activeDayIndex = 0;
+        let currentScheduleData = null;
+        let isMobileView = window.innerWidth < 768;
+        let currentMondayDate = getMondayOfCurrentWeek();
+        let currentLanguage = localStorage.getItem("edtLanguage") || "fr";
+        let currentUser = null;
+
+        // Timezone & Sharing state
+        const detectedTz = Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Paris";
+        let userPreferredTimezone = localStorage.getItem("edtTimezone") || "auto";
+        let activeTimezone = userPreferredTimezone === "auto" ? detectedTz : userPreferredTimezone;
+        let isShowingSchoolTime = false;
+        let activeOwnerId = null;
+        let directShareToken = null;
+
+        const pathParts = window.location.pathname.split("/share/");
+        if (pathParts.length > 1 && pathParts[1].trim()) {
+          directShareToken = pathParts[1].trim();
+        }
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get("token")) {
+          directShareToken = urlParams.get("token");
+        }
+
+        // Week picker variables
+        let pickerCurrentDate = new Date();
+        let selectedWeekStart = null;
+
+        // Dynamic full IANA timezones list
+        let allTimezones = [];
+        async function initTimezones(selectedTz) {
+          try {
+            if (window.Intl && typeof Intl.supportedValuesOf === "function") {
+              allTimezones = Intl.supportedValuesOf("timeZone");
+            } else {
+              const resp = await fetch("/api/timezones");
+              if (resp.ok) {
+                allTimezones = await resp.json();
+              }
+            }
+          } catch (e) {
+            console.warn("Could not load timezones dynamically:", e);
+          }
+
+          if (!allTimezones || allTimezones.length === 0) {
+            allTimezones = [
+              "Europe/Paris", "Europe/London", "America/New_York", "America/Chicago",
+              "America/Denver", "America/Los_Angeles", "Asia/Tokyo", "UTC"
+            ];
+          }
+
+          renderTimezoneOptions(allTimezones, selectedTz || userPreferredTimezone || "Europe/Paris");
+        }
+
+        function renderTimezoneOptions(tzList, currentTz, filterText = "") {
+          const lowerFilter = filterText.toLowerCase().trim();
+          const filtered = lowerFilter
+            ? tzList.filter((tz) => tz.toLowerCase().includes(lowerFilter))
+            : tzList;
+
+          settingTimezone.innerHTML = "";
+
+          if (!lowerFilter || "auto".includes(lowerFilter) || "navigateur".includes(lowerFilter) || "browser".includes(lowerFilter)) {
+            const autoOpt = document.createElement("option");
+            autoOpt.value = "auto";
+            autoOpt.textContent = `🌐 ${translations[currentLanguage].autoTz || "Automatique (Navigateur)"}`;
+            if (currentTz === "auto") autoOpt.selected = true;
+            settingTimezone.appendChild(autoOpt);
+          }
+
+          const groups = {};
+          filtered.forEach((tz) => {
+            const parts = tz.split("/");
+            const region = parts.length > 1 ? parts[0] : "Other";
+            if (!groups[region]) groups[region] = [];
+            groups[region].push(tz);
+          });
+
+          Object.keys(groups).sort().forEach((region) => {
+            const optgroup = document.createElement("optgroup");
+            optgroup.label = region;
+            groups[region].forEach((tz) => {
+              const opt = document.createElement("option");
+              opt.value = tz;
+              opt.textContent = tz.replace(/_/g, " ");
+              if (tz === currentTz) opt.selected = true;
+              optgroup.appendChild(opt);
+            });
+            settingTimezone.appendChild(optgroup);
+          });
+        }
+
+        if (timezoneSearch) {
+          timezoneSearch.addEventListener("input", function () {
+            renderTimezoneOptions(allTimezones, settingTimezone.value, this.value);
+          });
+        }
+
+        weekDate.value = formatDateForInput(currentMondayDate);
+        applyLanguage();
+        updateSelectedWeekText(currentMondayDate);
+
+        // Preload timezones
+        await initTimezones(userPreferredTimezone);
+
+        // Check authentication state from server
+        await checkAuth();
+
+        // Responsive resize listener (debounced to recalculate heights on desktop & mobile)
+        let resizeTimeout = null;
+        window.addEventListener("resize", function () {
+          clearTimeout(resizeTimeout);
+          resizeTimeout = setTimeout(() => {
+            isMobileView = window.innerWidth < 768;
+            if (currentScheduleData) {
+              displaySchedule(currentScheduleData, currentMondayDate);
+            }
+          }, 80);
+        });
+
+        // Touch swipe gestures for mobile day switching
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let touchStartTime = 0;
+
+        scheduleContainer.addEventListener(
+          "touchstart",
+          function (e) {
+            if (!isMobileView || e.touches.length !== 1) return;
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+            touchStartTime = Date.now();
+          },
+          { passive: true }
+        );
+
+        scheduleContainer.addEventListener(
+          "touchend",
+          function (e) {
+            if (!isMobileView || e.changedTouches.length !== 1) return;
+            const touchEndX = e.changedTouches[0].clientX;
+            const touchEndY = e.changedTouches[0].clientY;
+            const diffX = touchEndX - touchStartX;
+            const diffY = touchEndY - touchStartY;
+            const duration = Date.now() - touchStartTime;
+
+            // Detect horizontal swipe: diffX significant, diffY small, duration reasonable
+            if (Math.abs(diffX) > 45 && Math.abs(diffY) < 70 && duration < 600) {
+              if (diffX < 0) {
+                // Swipe left -> next day
+                if (activeDayIndex < 4) {
+                  setActiveDay(activeDayIndex + 1);
+                }
+              } else {
+                // Swipe right -> previous day
+                if (activeDayIndex > 0) {
+                  setActiveDay(activeDayIndex - 1);
+                }
+              }
+            }
+          },
+          { passive: true }
+        );
+
+        // Theme Handling
+        function applyTheme() {
+          const savedTheme = localStorage.getItem("edtTheme") || "dark";
+          const htmlElement = document.documentElement;
+
+          if (savedTheme === "light") {
+            htmlElement.classList.remove("dark-mode");
+            themeIcon.classList.remove("bi-sun-fill");
+            themeIcon.classList.add("bi-moon-fill");
+          } else {
+            htmlElement.classList.add("dark-mode");
+            themeIcon.classList.remove("bi-moon-fill");
+            themeIcon.classList.add("bi-sun-fill");
+          }
+        }
+
+        function toggleTheme() {
+          const htmlElement = document.documentElement;
+          if (htmlElement.classList.contains("dark-mode")) {
+            htmlElement.classList.remove("dark-mode");
+            themeIcon.classList.remove("bi-sun-fill");
+            themeIcon.classList.add("bi-moon-fill");
+            localStorage.setItem("edtTheme", "light");
+          } else {
+            htmlElement.classList.add("dark-mode");
+            themeIcon.classList.remove("bi-moon-fill");
+            themeIcon.classList.add("bi-sun-fill");
+            localStorage.setItem("edtTheme", "dark");
+          }
+        }
+        themeToggle.addEventListener("click", toggleTheme);
+        applyTheme();
+
+        // Language Handling
+        langToggle.addEventListener("click", function () {
+          currentLanguage = currentLanguage === "fr" ? "en" : "fr";
+          localStorage.setItem("edtLanguage", currentLanguage);
+          applyLanguage();
+
+          const settingLangSelect = document.getElementById("settingLanguage");
+          if (settingLangSelect) settingLangSelect.value = currentLanguage;
+
+          // If user is logged in, sync language preference to Discord bot database
+          if (currentUser) {
+            currentUser.settings.language = currentLanguage;
+            fetch("/api/settings", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ language: currentLanguage }),
+            }).catch((err) => console.warn("Could not sync language setting to server:", err));
+          }
+
+          if (currentScheduleData) {
+            displaySchedule(currentScheduleData, currentMondayDate);
+          }
+          updateSelectedWeekText(currentMondayDate);
+        });
+
+        function applyLanguage() {
+          document.documentElement.setAttribute("lang", currentLanguage);
+          langText.textContent = currentLanguage.toUpperCase();
+          document.title = translations[currentLanguage].title;
+          document.querySelector("h1").textContent = translations[currentLanguage].title;
+
+          if (welcomeTitle) welcomeTitle.textContent = translations[currentLanguage].welcome;
+          if (welcomeText) welcomeText.textContent = translations[currentLanguage].userIdPrompt;
+          if (newUserId) newUserId.placeholder = translations[currentLanguage].enterUserId;
+          if (saveUserId) saveUserId.textContent = translations[currentLanguage].save;
+
+          prevWeekBtn.innerHTML = `<i class="bi bi-arrow-left"></i> <span class="btn-text">${translations[currentLanguage].prevWeek}</span>`;
+          nextWeekBtn.innerHTML = `<span class="btn-text">${translations[currentLanguage].nextWeek}</span> <i class="bi bi-arrow-right"></i>`;
+          if (changeUserText) changeUserText.textContent = translations[currentLanguage].changeUser;
+          document.getElementById("refreshBtnText").textContent = translations[currentLanguage].refresh;
+          document.getElementById("datePickerBtnText").textContent = translations[currentLanguage].pickWeek;
+
+          weekPickerTitle.textContent = translations[currentLanguage].weekPickerTitle;
+          cancelWeekPicker.textContent = translations[currentLanguage].cancel;
+          selectWeek.textContent = translations[currentLanguage].select;
+
+          document.getElementById("discordLoginBtn").querySelector(".btn-text").textContent =
+            translations[currentLanguage].loginDiscord;
+          document.getElementById("settingsModalTitle").innerHTML = `<i class="bi bi-person-gear"></i> ${translations[currentLanguage].settingsTitle}`;
+          document.getElementById("dailyNotifLabel").textContent = translations[currentLanguage].dailyNotif;
+          document.getElementById("weeklyNotifLabel").textContent = translations[currentLanguage].weeklyNotif;
+          document.getElementById("preferImageLabel").textContent = translations[currentLanguage].preferImage;
+          if (document.getElementById("workDaysLabel")) {
+            document.getElementById("workDaysLabel").textContent = translations[currentLanguage].workDays;
+          }
+          if (document.getElementById("settingLangLabel")) {
+            document.getElementById("settingLangLabel").textContent = translations[currentLanguage].botLanguage;
+          }
+          document.getElementById("logoutBtn").innerHTML = `<i class="bi bi-box-arrow-right"></i> ${translations[currentLanguage].logout}`;
+
+          if (initialMessage) {
+            initialMessage.textContent = translations[currentLanguage].loading;
+          }
+          updateSelectedWeekText(currentMondayDate);
+        }
+
+        // Authentication & Settings check
+        async function checkAuth() {
+          try {
+            const resp = await fetch("/api/me");
+            const data = await resp.json();
+            if (data.logged_in && data.user) {
+              currentUser = data;
+              discordLoginBtn.style.display = "none";
+              userProfileBtn.style.display = "inline-flex";
+              userName.textContent = data.user.global_name || data.user.username;
+              userAvatar.src = data.user.avatar_url;
+
+              // Populate settings modal
+              settingsIcalUrl.value = data.settings.ical_url || "";
+              settingDailyNotif.checked = Boolean(data.settings.daily_notifications);
+              settingWeeklyNotif.checked = Boolean(data.settings.weekly_notifications);
+              settingPreferImage.checked = Boolean(data.settings.prefer_image);
+              settingWorkDays.checked = data.settings.show_work_days !== false;
+              settingShareEnabled.checked = Boolean(data.settings.share_enabled);
+              shareSettingsDetails.style.display = settingShareEnabled.checked ? "block" : "none";
+
+              if (data.settings.timezone) {
+                userPreferredTimezone = data.settings.timezone;
+                localStorage.setItem("edtTimezone", userPreferredTimezone);
+                activeTimezone = userPreferredTimezone === "auto" ? detectedTz : userPreferredTimezone;
+              }
+              await initTimezones(userPreferredTimezone);
+
+              if (data.settings.share_token) {
+                shareSecretLink.value = window.location.origin + "/share/" + data.settings.share_token;
+              }
+
+              // Apply saved language from user profile if present
+              if (data.settings.language) {
+                currentLanguage = data.settings.language;
+                localStorage.setItem("edtLanguage", currentLanguage);
+                applyLanguage();
+              }
+              if (settingLanguage) settingLanguage.value = currentLanguage;
+
+              loadWhitelist();
+              loadSharedWithMe();
+
+              // If direct share token or iCal URL is configured, load schedule
+              if (directShareToken || data.settings.ical_url) {
+                userIdContainer.classList.add("hidden");
+                loadSchedule(currentMondayDate);
+                return;
+              }
+            } else {
+              currentUser = null;
+              discordLoginBtn.style.display = "inline-flex";
+              userProfileBtn.style.display = "none";
+              settingWorkDays.checked = localStorage.getItem("edtShowWorkDays") !== "false";
+            }
+          } catch (e) {
+            console.warn("Unable to check auth status:", e);
+          }
+
+          if (directShareToken) {
+            userIdContainer.classList.add("hidden");
+            loadSchedule(currentMondayDate);
+            return;
+          }
+
+          // Fallback to localStorage if not logged in or no DB url
+          const savedUrl = localStorage.getItem("edtIcalUrl");
+          if (savedUrl) {
+            userIdContainer.classList.add("hidden");
+            loadSchedule(currentMondayDate);
+          } else {
+            userIdContainer.classList.remove("hidden");
+            if (initialMessage) initialMessage.textContent = translations[currentLanguage].enterIdToShow;
+          }
+        }
+
+        async function loadWhitelist() {
+          if (!currentUser) return;
+          try {
+            const resp = await fetch("/api/share/whitelist");
+            if (!resp.ok) return;
+            const data = await resp.json();
+            if (data.share_token) {
+              shareSecretLink.value = window.location.origin + "/share/" + data.share_token;
+            }
+            whitelistList.innerHTML = "";
+            const viewers = data.viewer_details || (data.viewers || []).map((v) => ({ id: v, display_name: "ID: " + v }));
+            if (!viewers || viewers.length === 0) {
+              whitelistList.innerHTML = `<p style="font-size: 0.8rem; color: var(--text-secondary); margin: 4px 0;">Aucun utilisateur autorisé.</p>`;
+              return;
+            }
+            viewers.forEach((v) => {
+              const vid = v.id;
+              const entry = document.createElement("div");
+              entry.className = "whitelist-entry";
+              const safeAvatar = safeHttpUrl(v.avatar_url);
+              const avatarHtml = safeAvatar
+                ? `<img src="${escapeHtml(safeAvatar)}" class="whitelist-avatar" alt="avatar" />`
+                : `<div class="whitelist-avatar-fallback"><i class="bi bi-discord"></i></div>`;
+              entry.innerHTML = `
+                <div class="whitelist-user-info">
+                  ${avatarHtml}
+                  <div class="whitelist-names">
+                    <span class="whitelist-name">${escapeHtml(v.display_name || ('User ' + vid))}</span>
+                    <span class="whitelist-id"><code>${vid}</code></span>
+                  </div>
+                </div>
+                <button type="button" class="whitelist-del-btn" data-viewer-id="${vid}" title="Supprimer">&times;</button>
+              `;
+              entry.querySelector(".whitelist-del-btn").addEventListener("click", async function () {
+                await fetch(`/api/share/whitelist/${vid}`, { method: "DELETE" });
+                loadWhitelist();
+              });
+              whitelistList.appendChild(entry);
+            });
+          } catch (e) {
+            console.warn("Could not load whitelist:", e);
+          }
+        }
+
+        async function loadSharedWithMe() {
+          if (!currentUser) return;
+          try {
+            const resp = await fetch("/api/shared-with-me");
+            if (!resp.ok) return;
+            const shared = await resp.json();
+            if (shared && shared.length > 0) {
+              scheduleSwitcher.innerHTML = "";
+              const myOpt = document.createElement("option");
+              myOpt.value = "";
+              myOpt.textContent = `👤 ${translations[currentLanguage].mySchedule}`;
+              scheduleSwitcher.appendChild(myOpt);
+
+              shared.forEach((s) => {
+                const opt = document.createElement("option");
+                opt.value = s.discord_id;
+                opt.textContent = `👥 ${s.display_name}`;
+                scheduleSwitcher.appendChild(opt);
+              });
+
+              scheduleSwitcherContainer.style.display = "inline-flex";
+            } else {
+              scheduleSwitcherContainer.style.display = "none";
+            }
+          } catch (e) {
+            console.warn("Could not load shared schedules:", e);
+          }
+        }
+
+        scheduleSwitcher.addEventListener("change", function () {
+          activeOwnerId = this.value || null;
+          loadSchedule(currentMondayDate, true);
+        });
+
+        timezoneToggleBtn.addEventListener("click", function () {
+          isShowingSchoolTime = !isShowingSchoolTime;
+          timezoneToggleBtn.classList.toggle("active", isShowingSchoolTime);
+          loadSchedule(currentMondayDate, true);
+        });
+
+        settingShareEnabled.addEventListener("change", function () {
+          shareSettingsDetails.style.display = this.checked ? "block" : "none";
+        });
+
+        copyShareLinkBtn.addEventListener("click", function () {
+          if (!shareSecretLink.value) return;
+          navigator.clipboard.writeText(shareSecretLink.value);
+          alert(translations[currentLanguage].copied);
+        });
+
+        regenShareLinkBtn.addEventListener("click", async function () {
+          try {
+            const resp = await fetch("/api/share/token/regenerate", { method: "POST" });
+            const data = await resp.json();
+            if (data.token) {
+              shareSecretLink.value = window.location.origin + "/share/" + data.token;
+            }
+          } catch (e) {
+            alert("Erreur lors de la régénération du lien.");
+          }
+        });
+
+        addWhitelistBtn.addEventListener("click", async function () {
+          const val = newWhitelistId.value.trim();
+          if (!val || !/^\d{17,20}$/.test(val)) {
+            alert("Veuillez entrer un ID utilisateur Discord numérique valide (17-20 chiffres).");
+            return;
+          }
+          try {
+            await fetch("/api/share/whitelist", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ viewer_id: val }),
+            });
+            newWhitelistId.value = "";
+            loadWhitelist();
+          } catch (e) {
+            alert("Erreur lors de l'ajout.");
+          }
+        });
+
+        // Settings Modal events
+        userProfileBtn.addEventListener("click", function () {
+          settingsSaveStatus.style.display = "none";
+          settingsModal.classList.add("show");
+        });
+
+        closeSettingsModal.addEventListener("click", function () {
+          settingsModal.classList.remove("show");
+        });
+
+        settingsModal.addEventListener("click", function (e) {
+          if (e.target === settingsModal) {
+            settingsModal.classList.remove("show");
+          }
+        });
+
+        saveSettingsBtn.addEventListener("click", async function () {
+          const icalUrlVal = settingsIcalUrl.value.trim();
+          const dailyVal = settingDailyNotif.checked;
+          const weeklyVal = settingWeeklyNotif.checked;
+          const preferImageVal = settingPreferImage.checked;
+          const workDaysVal = settingWorkDays.checked;
+          const langVal = settingLanguage.value;
+          const tzVal = settingTimezone.value;
+          const shareEnabledVal = settingShareEnabled.checked;
+
+          try {
+            saveSettingsBtn.disabled = true;
+            const resp = await fetch("/api/settings", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                ical_url: icalUrlVal,
+                daily_notifications: dailyVal,
+                weekly_notifications: weeklyVal,
+                prefer_image: preferImageVal,
+                language: langVal,
+                show_work_days: workDaysVal,
+                timezone: tzVal,
+                share_enabled: shareEnabledVal,
+              }),
+            });
+
+            if (!resp.ok) {
+              const err = await resp.json();
+              alert(err.detail || "Erreur lors de la sauvegarde.");
+              return;
+            }
+
+            const data = await resp.json();
+            if (currentUser) {
+              currentUser.settings = data.settings;
+            }
+            if (icalUrlVal) {
+              localStorage.setItem("edtIcalUrl", icalUrlVal);
+            }
+            localStorage.setItem("edtShowWorkDays", workDaysVal);
+
+            userPreferredTimezone = tzVal;
+            localStorage.setItem("edtTimezone", tzVal);
+            activeTimezone = tzVal === "auto" ? detectedTz : tzVal;
+
+            if (langVal !== currentLanguage) {
+              currentLanguage = langVal;
+              localStorage.setItem("edtLanguage", currentLanguage);
+              applyLanguage();
+            }
+
+            settingsSaveStatus.textContent = translations[currentLanguage].settingsSaved;
+            settingsSaveStatus.style.display = "block";
+
+            // Reload schedule with new settings
+            setTimeout(() => {
+              settingsModal.classList.remove("show");
+              loadSchedule(currentMondayDate, true);
+            }, 800);
+          } catch (e) {
+            alert("Erreur de communication avec le serveur.");
+          } finally {
+            saveSettingsBtn.disabled = false;
+          }
+        });
+
+        // Unauthenticated local URL save
+        saveUserId.addEventListener("click", function () {
+          const urlVal = newUserId.value.trim();
+          if (!urlVal || (!urlVal.startsWith("http://") && !urlVal.startsWith("https://") && !urlVal.startsWith("webcal://"))) {
+            alert("Veuillez entrer une URL valide débutant par https://");
+            return;
+          }
+          localStorage.setItem("edtIcalUrl", urlVal);
+          userIdContainer.classList.add("hidden");
+
+          // Also sync to DB if logged in
+          if (currentUser) {
+            settingsIcalUrl.value = urlVal;
+            saveSettingsBtn.click();
+          } else {
+            loadSchedule(currentMondayDate);
+          }
+        });
+
+        changeUserId.addEventListener("click", function () {
+          userIdContainer.classList.remove("hidden");
+          newUserId.value = localStorage.getItem("edtIcalUrl") || (currentUser && currentUser.settings ? currentUser.settings.ical_url : "") || "";
+          newUserId.focus();
+        });
+
+        // Week navigation buttons
+        prevWeekBtn.addEventListener("click", function () {
+          const prevMonday = new Date(currentMondayDate);
+          prevMonday.setDate(prevMonday.getDate() - 7);
+          currentMondayDate = prevMonday;
+          weekDate.value = formatDateForInput(currentMondayDate);
+          loadSchedule(currentMondayDate);
+        });
+
+        nextWeekBtn.addEventListener("click", function () {
+          const nextMonday = new Date(currentMondayDate);
+          nextMonday.setDate(nextMonday.getDate() + 7);
+          currentMondayDate = nextMonday;
+          weekDate.value = formatDateForInput(currentMondayDate);
+          loadSchedule(currentMondayDate);
+        });
+
+        document.getElementById("refreshBtn").addEventListener("click", function () {
+          loadSchedule(currentMondayDate, true);
+        });
+
+        // Keyboard arrow navigation
+        document.addEventListener("keydown", function (e) {
+          if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+          if (e.key === "ArrowLeft") {
+            e.preventDefault();
+            prevWeekBtn.click();
+          } else if (e.key === "ArrowRight") {
+            e.preventDefault();
+            nextWeekBtn.click();
+          }
+        });
+
+        // Week picker modal
+        datePickerBtn.addEventListener("click", function () {
+          pickerCurrentDate = new Date(currentMondayDate);
+          selectedWeekStart = null;
+          selectWeek.disabled = true;
+          generateCalendar();
+          weekPickerModal.classList.add("show");
+        });
+
+        function closePicker() {
+          weekPickerModal.classList.remove("show");
+        }
+        closeWeekPicker.addEventListener("click", closePicker);
+        cancelWeekPicker.addEventListener("click", closePicker);
+        weekPickerModal.addEventListener("click", (e) => {
+          if (e.target === weekPickerModal) closePicker();
+        });
+
+        selectWeek.addEventListener("click", function () {
+          if (selectedWeekStart) {
+            currentMondayDate = new Date(selectedWeekStart);
+            weekDate.value = formatDateForInput(currentMondayDate);
+            loadSchedule(currentMondayDate);
+            closePicker();
+          }
+        });
+
+        prevMonth.addEventListener("click", function () {
+          pickerCurrentDate.setMonth(pickerCurrentDate.getMonth() - 1);
+          generateCalendar();
+        });
+
+        nextMonth.addEventListener("click", function () {
+          pickerCurrentDate.setMonth(pickerCurrentDate.getMonth() + 1);
+          generateCalendar();
+        });
+
+        function generateCalendar() {
+          const locale = currentLanguage === "fr" ? "fr-FR" : "en-US";
+          currentMonthYear.textContent = pickerCurrentDate.toLocaleDateString(locale, {
+            month: "long",
+            year: "numeric",
+          });
+
+          calendarGrid.innerHTML = "";
+          const dayHeaders =
+            currentLanguage === "fr"
+              ? ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"]
+              : ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+          dayHeaders.forEach((day) => {
+            const header = document.createElement("div");
+            header.className = "calendar-header";
+            header.textContent = day;
+            calendarGrid.appendChild(header);
+          });
+
+          const firstDay = new Date(pickerCurrentDate.getFullYear(), pickerCurrentDate.getMonth(), 1);
+          const startDate = new Date(firstDay);
+          const dayOffset = (firstDay.getDay() === 0 ? 7 : firstDay.getDay()) - 1;
+          startDate.setDate(startDate.getDate() - dayOffset);
+
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+
+          for (let i = 0; i < 42; i++) {
+            const date = new Date(startDate);
+            date.setDate(startDate.getDate() + i);
+
+            const dayElement = document.createElement("div");
+            dayElement.className = "calendar-day";
+            dayElement.textContent = date.getDate();
+
+            if (date.getMonth() !== pickerCurrentDate.getMonth()) {
+              dayElement.classList.add("other-month");
+            }
+            if (date.getTime() === today.getTime()) {
+              dayElement.classList.add("today");
+            }
+
+            dayElement.addEventListener("click", function () {
+              selectWeekForDate(date);
+            });
+            calendarGrid.appendChild(dayElement);
+          }
+        }
+
+        function selectWeekForDate(date) {
+          const selectedDay = date.getDay() || 7;
+          const monday = new Date(date);
+          monday.setDate(date.getDate() - (selectedDay - 1));
+          monday.setHours(0, 0, 0, 0);
+
+          selectedWeekStart = monday;
+          selectWeek.disabled = false;
+
+          const allDays = calendarGrid.querySelectorAll(".calendar-day");
+          allDays.forEach((day) => day.classList.remove("selected-week"));
+
+          const startCalDate = new Date(pickerCurrentDate.getFullYear(), pickerCurrentDate.getMonth(), 1);
+          const offset = (startCalDate.getDay() === 0 ? 7 : startCalDate.getDay()) - 1;
+          startCalDate.setDate(startCalDate.getDate() - offset);
+
+          allDays.forEach((el, idx) => {
+            const currentElDate = new Date(startCalDate);
+            currentElDate.setDate(startCalDate.getDate() + idx);
+            const diffTime = currentElDate.getTime() - monday.getTime();
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            if (diffDays >= 0 && diffDays < 7) {
+              el.classList.add("selected-week");
+            }
+          });
+        }
+
+        function showLoading() {
+          scheduleContainer.innerHTML = `
+            <div class="spinner-container" style="grid-column: 1 / -1;">
+              <div class="spinner"></div>
+              <p>${translations[currentLanguage].loading}</p>
+            </div>`;
+        }
+
+        function showError(msg) {
+          scheduleContainer.textContent = "";
+          const wrapper = document.createElement("div");
+          wrapper.style.gridColumn = "1 / -1";
+          wrapper.style.textAlign = "center";
+          const alert = document.createElement("div");
+          alert.className = "alert alert-error";
+          alert.setAttribute("role", "alert");
+          alert.textContent = msg || translations[currentLanguage].errorFetching;
+          wrapper.appendChild(alert);
+          scheduleContainer.appendChild(wrapper);
+        }
+
+        // Schedule Loader & Renderer
+        function loadSchedule(selectedDate, noCache = false) {
+          showLoading();
+          updateSelectedWeekText(selectedDate);
+
+          const formattedDate = formatDateForInput(selectedDate);
+          const tzToUse = isShowingSchoolTime ? "Europe/Paris" : activeTimezone;
+          const tzDisplay = isShowingSchoolTime ? "Paris" : (activeTimezone.split("/").pop().replace(/_/g, " "));
+          if (timezoneLabel) timezoneLabel.textContent = tzDisplay;
+
+          let endpoint = `/api/schedule/week?date=${formattedDate}&tz=${encodeURIComponent(tzToUse)}&lang=${currentLanguage}`;
+
+          if (directShareToken) {
+            endpoint += `&token=${encodeURIComponent(directShareToken)}`;
+          } else if (activeOwnerId) {
+            endpoint += `&owner_id=${activeOwnerId}`;
+          } else {
+            let targetUrl = "";
+            if (currentUser && currentUser.settings && currentUser.settings.ical_url) {
+              targetUrl = currentUser.settings.ical_url;
+            } else {
+              targetUrl = localStorage.getItem("edtIcalUrl") || "";
+            }
+
+            if (!targetUrl) {
+              userIdContainer.classList.remove("hidden");
+              showError(translations[currentLanguage].enterIdToShow);
+              return;
+            }
+
+            const showWorkDaysVal =
+              currentUser && currentUser.settings && typeof currentUser.settings.show_work_days === "boolean"
+                ? currentUser.settings.show_work_days
+                : localStorage.getItem("edtShowWorkDays") !== "false";
+
+            endpoint += `&url=${encodeURIComponent(targetUrl)}&work_days=${showWorkDaysVal}`;
+          }
+
+          if (noCache) {
+            endpoint += `&_=${Date.now()}`;
+          }
+
+          fetch(endpoint)
+            .then((res) => (res.ok ? res.json() : res.json().then((err) => Promise.reject(err.detail || "Error"))))
+            .then((data) => {
+              currentScheduleData = data;
+              displaySchedule(data, selectedDate);
+            })
+            .catch((err) => {
+              console.error("Error loading schedule:", err);
+              showError(typeof err === "string" ? err : translations[currentLanguage].errorFetching);
+            });
+        }
+
+        function displaySchedule(data, selectedDate) {
+          scheduleContainer.innerHTML = "";
+          daysTabs.innerHTML = "";
+
+          const selectedDay = selectedDate.getDay() || 7;
+          const monday = new Date(selectedDate);
+          monday.setDate(monday.getDate() - (selectedDay - 1));
+
+          const days = translations[currentLanguage].days;
+          const datesOfWeek = [];
+          const visibleDays = [];
+
+          let earliestStart = null;
+          let latestEnd = null;
+
+          data.forEach((dayData) => {
+            dayData.forEach((item) => {
+              if (item.event_type === "holiday") return;
+              const start = timeToMinutes(item.start_time);
+              const end = timeToMinutes(item.end_time);
+              if (start !== null) {
+                earliestStart = earliestStart === null ? start : Math.min(earliestStart, start);
+              }
+              if (end !== null) {
+                latestEnd = latestEnd === null ? end : Math.max(latestEnd, end);
+              }
+            });
+          });
+
+          let minTime = 8 * 60;  // Default 08:00
+          let maxTime = 19 * 60; // Default 19:00
+
+          if (earliestStart !== null && latestEnd !== null) {
+            const startHour = Math.floor(earliestStart / 60);
+            const endHour = Math.ceil(latestEnd / 60);
+
+            // Shifted timezone earlier (e.g. US timezones: 02:00 - 11:00)
+            if (startHour < 8) {
+              minTime = Math.max(0, startHour) * 60;
+              maxTime = Math.min(24 * 60, Math.max(minTime + 8 * 60, (endHour + 1) * 60));
+            }
+            // Shifted timezone later (e.g. Asia/Pacific: 15:00 - 23:00)
+            else if (startHour >= 12) {
+              minTime = Math.max(0, (startHour - 1)) * 60;
+              maxTime = Math.min(24 * 60, Math.max(minTime + 8 * 60, (endHour + 1) * 60));
+            }
+            // Standard daytime (e.g. Europe/Paris)
+            else {
+              minTime = Math.min(8 * 60, startHour * 60);
+              maxTime = Math.max(19 * 60, endHour * 60);
+            }
+          }
+
+          minTime = Math.floor(minTime / 60) * 60;
+          maxTime = Math.ceil(maxTime / 60) * 60;
+          if (maxTime - minTime < 480) maxTime = minTime + 480;
+
+          for (let i = 0; i < 5; i++) {
+            const date = new Date(monday);
+            date.setDate(monday.getDate() + i);
+            datesOfWeek.push(date);
+          }
+
+          days.forEach((day, index) => {
+            visibleDays.push(index);
+            const date = datesOfWeek[index];
+            const formattedDate = `${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}`;
+
+            const tab = document.createElement("button");
+            tab.className = "tab-item";
+            tab.dataset.dayIndex = index;
+            tab.innerText = `${day} ${formattedDate}`;
+
+            tab.addEventListener("click", function () {
+              setActiveDay(parseInt(this.dataset.dayIndex));
+            });
+            daysTabs.appendChild(tab);
+          });
+
+          if (visibleDays.length > 0) {
+            if (!visibleDays.includes(activeDayIndex)) activeDayIndex = visibleDays[0];
+            setActiveDay(activeDayIndex);
+          }
+
+          days.forEach((day, index) => {
+            const date = datesOfWeek[index];
+            const locale = currentLanguage === "fr" ? "fr-FR" : "en-GB";
+            const formattedDate = date.toLocaleDateString(locale, { day: "2-digit", month: "2-digit", year: "numeric" });
+
+            const dayColumn = document.createElement("div");
+            dayColumn.className = "day-column";
+            dayColumn.dataset.dayIndex = index;
+
+            if (isMobileView && index === activeDayIndex) {
+              dayColumn.classList.add("active");
+            }
+
+            dayColumn.innerHTML = `
+              <div class="day-header">${day} ${formattedDate}</div>
+              <div id="day-${index}" class="day-schedule"></div>
+            `;
+            scheduleContainer.appendChild(dayColumn);
+            const daySchedule = dayColumn.querySelector(`#day-${index}`);
+            if (isMobileView) {
+              generateMobileAgendaSchedule(data[index] || [], daySchedule, index);
+            } else {
+              generateProportionalSchedule(data[index] || [], daySchedule, index, minTime, maxTime);
+            }
+          });
+
+          if (isMobileView) {
+            showActiveDayOnMobile();
+          }
+        }
+
+        function calculatePixelsPerMinute(totalMinutes) {
+          const grid = document.getElementById("scheduleContainer");
+          if (!grid || grid.clientHeight === 0) return 1;
+          const approxHeaderHeight = 35;
+          const gapBuffer = 15;
+          const availableHeight = grid.clientHeight - approxHeaderHeight - gapBuffer;
+          return Math.max(0.1, availableHeight / totalMinutes);
+        }
+
+        function timeToMinutes(timeStr) {
+          if (!timeStr || timeStr === "??:??") return null;
+          const [hours, minutes] = timeStr.split(":").map(Number);
+          return hours * 60 + minutes;
+        }
+
+        function minutesToTime(minutes) {
+          const hours = Math.floor(minutes / 60);
+          const mins = minutes % 60;
+          return `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
+        }
+
+        function generateProportionalSchedule(dayData, container, dayIndex, dayStart, dayEnd) {
+          const sortedItems = [...dayData].sort((a, b) => {
+            if (a.start_time && b.start_time) return a.start_time.localeCompare(b.start_time);
+            return 0;
+          });
+
+          const totalMinutes = dayEnd - dayStart;
+          const pixelsPerMinute = calculatePixelsPerMinute(totalMinutes);
+          const totalDayHeight = totalMinutes * pixelsPerMinute;
+
+          if (sortedItems.length === 0) {
+            const emptyDayDiv = document.createElement("div");
+            emptyDayDiv.className = "full-day-empty";
+            emptyDayDiv.style.height = `${totalDayHeight}px`;
+            emptyDayDiv.textContent = translations[currentLanguage].noClass;
+            container.appendChild(emptyDayDiv);
+            return;
+          }
+
+          const timelineBlocks = [];
+          let currentTime = dayStart;
+
+          for (let i = 0; i < sortedItems.length; i++) {
+            const item = sortedItems[i];
+            const itemStart = timeToMinutes(item.start_time);
+            const itemEnd = timeToMinutes(item.end_time);
+
+            if (itemStart === null || itemEnd === null) continue;
+
+            if (currentTime < itemStart) {
+              timelineBlocks.push({ type: "empty", start: currentTime, end: itemStart, duration: itemStart - currentTime });
+            }
+
+            timelineBlocks.push({ type: "class", start: itemStart, end: itemEnd, duration: itemEnd - itemStart, data: item });
+            currentTime = itemEnd;
+          }
+
+          if (currentTime < dayEnd) {
+            timelineBlocks.push({ type: "empty", start: currentTime, end: dayEnd, duration: dayEnd - currentTime });
+          }
+
+          timelineBlocks.forEach((block) => {
+            const blockHeight = block.duration * pixelsPerMinute;
+
+            if (block.type === "empty") {
+              const emptyBlock = document.createElement("div");
+              emptyBlock.className = "empty-time-block";
+              emptyBlock.style.height = `${blockHeight}px`;
+              emptyBlock.style.minHeight = `${Math.max(window.innerWidth <= 768 ? 10 : 15, blockHeight)}px`;
+
+              if (block.duration >= 30) {
+                const startTimeFormatted = currentLanguage === "en" ? convertTo12HourFormat(minutesToTime(block.start)) : minutesToTime(block.start);
+                const endTimeFormatted = currentLanguage === "en" ? convertTo12HourFormat(minutesToTime(block.end)) : minutesToTime(block.end);
+                emptyBlock.textContent = `${startTimeFormatted} - ${endTimeFormatted}`;
+              }
+              container.appendChild(emptyBlock);
+            } else {
+              const scheduleItem = document.createElement("div");
+              let itemClass = "schedule-item";
+              let typeIcon = "";
+              if (block.data.event_type === "holiday") {
+                itemClass += " holiday-item";
+                typeIcon = "🎉 ";
+              } else if (block.data.event_type === "work") {
+                itemClass += " work-item";
+                typeIcon = "💼 ";
+              }
+              scheduleItem.className = itemClass;
+              scheduleItem.style.height = `${blockHeight}px`;
+              scheduleItem.style.minHeight = `${Math.max(window.innerWidth <= 768 ? 20 : 30, blockHeight)}px`;
+
+              let startTime = block.data.start_time || "??:??";
+              let endTime = block.data.end_time || "??:??";
+
+              if (currentLanguage === "en") {
+                startTime = convertTo12HourFormat(startTime);
+                endTime = convertTo12HourFormat(endTime);
+              }
+
+              let teamsButton = "";
+              const safeTeamsLink = safeHttpUrl(block.data.teams_link);
+              if (safeTeamsLink) {
+                teamsButton = `<a href="${escapeHtml(safeTeamsLink)}" target="_blank" rel="noopener noreferrer" class="desktop-teams-badge" title="Lien Teams"><i class="bi bi-microsoft-teams"></i> Teams</a>`;
+              }
+
+              let parisSubtime = "";
+              if (block.data.school_start_time && block.data.school_start_time !== block.data.start_time) {
+                let schoolStart = currentLanguage === "en" ? convertTo12HourFormat(block.data.school_start_time) : block.data.school_start_time;
+                let schoolEnd = currentLanguage === "en" ? convertTo12HourFormat(block.data.school_end_time || "??:??") : (block.data.school_end_time || "??:??");
+                parisSubtime = `<span class="subtime">(${escapeHtml(schoolStart)} - ${escapeHtml(schoolEnd)} Paris)</span>`;
+              }
+
+              const teacherName = block.data.teacher || translations[currentLanguage].teacher;
+              const teacherHtml =
+                block.data.event_type === "holiday" || block.data.event_type === "work"
+                  ? ""
+                  : `<div class="teacher" title="${escapeHtml(block.data.teacher || '')}">${escapeHtml(teacherName)}</div>`;
+
+              const roomHtml = block.data.room ? `<span class="room" title="${escapeHtml(block.data.room)}">${escapeHtml(block.data.room)}</span>` : "";
+
+              const eventTitle = block.data.name || translations[currentLanguage].untitled;
+
+              scheduleItem.innerHTML = `
+                <div class="item-header">
+                  <div class="time-col">
+                    <span class="time">${escapeHtml(startTime)} - ${escapeHtml(endTime)}</span>
+                    ${parisSubtime}
+                  </div>
+                  <div class="header-meta">
+                    ${roomHtml}
+                    ${teamsButton}
+                  </div>
+                </div>
+                <div class="name" title="${escapeHtml(block.data.name || '')}">${typeIcon}${escapeHtml(eventTitle)}</div>
+                ${teacherHtml}
+              `;
+              container.appendChild(scheduleItem);
+            }
+          });
+        }
+
+        function setActiveDay(newIndex) {
+          activeDayIndex = Math.max(0, Math.min(4, newIndex));
+          document.querySelectorAll(".tab-item").forEach((t) => {
+            t.classList.toggle("active", parseInt(t.dataset.dayIndex) === activeDayIndex);
+          });
+          const activeTab = daysTabs.querySelector(`.tab-item[data-day-index="${activeDayIndex}"]`);
+          if (activeTab && activeTab.scrollIntoView) {
+            activeTab.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+          }
+          showActiveDayOnMobile();
+        }
+
+        function calculateDurationStr(startTime, endTime) {
+          const startMin = timeToMinutes(startTime);
+          const endMin = timeToMinutes(endTime);
+          if (startMin === null || endMin === null || endMin <= startMin) return "";
+          const diff = endMin - startMin;
+          const hours = Math.floor(diff / 60);
+          const mins = diff % 60;
+          if (hours > 0 && mins > 0) {
+            return `${hours}h${String(mins).padStart(2, "0")}`;
+          } else if (hours > 0) {
+            return `${hours}h`;
+          } else {
+            return `${mins}min`;
+          }
+        }
+
+        function generateMobileAgendaSchedule(dayData, container, dayIndex) {
+          const sortedItems = [...dayData].sort((a, b) => {
+            if (a.start_time && b.start_time) return a.start_time.localeCompare(b.start_time);
+            return 0;
+          });
+
+          if (sortedItems.length === 0) {
+            const emptyDiv = document.createElement("div");
+            emptyDiv.className = "mobile-empty-day";
+            emptyDiv.innerHTML = `
+              <div class="empty-icon"><i class="bi bi-calendar2-check"></i></div>
+              <div class="empty-title">${translations[currentLanguage].noClass}</div>
+              <div class="empty-subtitle">${translations[currentLanguage].enjoyDay}</div>
+            `;
+            container.appendChild(emptyDiv);
+            return;
+          }
+
+          let prevEndMin = null;
+
+          sortedItems.forEach((item) => {
+            const startMin = timeToMinutes(item.start_time);
+            const endMin = timeToMinutes(item.end_time);
+
+            // Insert break divider if there is a gap >= 20 mins between consecutive classes
+            if (prevEndMin !== null && startMin !== null && startMin - prevEndMin >= 20) {
+              const breakEl = document.createElement("div");
+              breakEl.className = "mobile-break-divider";
+              const breakStartStr = minutesToTime(prevEndMin);
+              const breakEndStr = minutesToTime(startMin);
+              const breakDurationStr = calculateDurationStr(breakStartStr, breakEndStr);
+              const breakStartFmt = currentLanguage === "en" ? convertTo12HourFormat(breakStartStr) : breakStartStr;
+              const breakEndFmt = currentLanguage === "en" ? convertTo12HourFormat(breakEndStr) : breakEndStr;
+              breakEl.innerHTML = `☕ ${translations[currentLanguage].breakLabel} (${breakStartFmt} - ${breakEndFmt}${breakDurationStr ? " • " + breakDurationStr : ""})`;
+              container.appendChild(breakEl);
+            }
+
+            if (endMin !== null) {
+              prevEndMin = endMin;
+            }
+
+            const card = document.createElement("div");
+            let cardClass = "mobile-agenda-card";
+            let typeIcon = '<i class="bi bi-clock"></i> ';
+            if (item.event_type === "holiday") {
+              cardClass += " holiday";
+              typeIcon = "🎉 ";
+            } else if (item.event_type === "work") {
+              cardClass += " work";
+              typeIcon = "💼 ";
+            }
+            card.className = cardClass;
+
+            let startTime = item.start_time || "??:??";
+            let endTime = item.end_time || "??:??";
+            if (currentLanguage === "en") {
+              startTime = convertTo12HourFormat(startTime);
+              endTime = convertTo12HourFormat(endTime);
+            }
+
+            const durationStr = calculateDurationStr(item.start_time, item.end_time);
+
+            let parisSubtime = "";
+            if (item.school_start_time && item.school_start_time !== item.start_time) {
+              let schoolStart = currentLanguage === "en" ? convertTo12HourFormat(item.school_start_time) : item.school_start_time;
+              let schoolEnd = currentLanguage === "en" ? convertTo12HourFormat(item.school_end_time || "??:??") : (item.school_end_time || "??:??");
+              parisSubtime = ` <span style="font-size:0.75rem; font-weight:normal; opacity:0.8; margin-left:4px;">(${escapeHtml(schoolStart)} - ${escapeHtml(schoolEnd)} Paris)</span>`;
+            }
+
+            let teamsBtn = "";
+            const safeTeamsMobileUrl = safeHttpUrl(item.teams_link);
+            if (safeTeamsMobileUrl) {
+              teamsBtn = `<a href="${escapeHtml(safeTeamsMobileUrl)}" target="_blank" rel="noopener noreferrer" class="mobile-teams-btn" title="Teams"><i class="bi bi-microsoft-teams"></i> Teams</a>`;
+            }
+
+            let roomPill = "";
+            if (item.room && item.event_type !== "holiday" && item.event_type !== "work") {
+              const escapedRoom = escapeHtml(item.room);
+              roomPill = `<span class="mobile-meta-pill" title="${escapedRoom}"><i class="bi bi-geo-alt"></i> ${escapedRoom}</span>`;
+            }
+
+            let teacherPill = "";
+            if (item.teacher && item.event_type !== "holiday" && item.event_type !== "work") {
+              const escapedTeacher = escapeHtml(item.teacher);
+              teacherPill = `<span class="mobile-meta-pill" title="${escapedTeacher}"><i class="bi bi-person"></i> ${escapedTeacher}</span>`;
+            }
+
+            const itemName = escapeHtml(item.name || translations[currentLanguage].untitled);
+
+            let metaHtml = "";
+            if (roomPill || teacherPill || teamsBtn) {
+              metaHtml = `<div class="mobile-card-meta">${roomPill}${teacherPill}${teamsBtn}</div>`;
+            }
+
+            card.innerHTML = `
+              <div class="mobile-card-top">
+                <span class="mobile-card-time">${typeIcon}${escapeHtml(startTime)} - ${escapeHtml(endTime)}${parisSubtime}</span>
+                ${durationStr ? `<span class="mobile-card-duration">${escapeHtml(durationStr)}</span>` : ""}
+              </div>
+              <div class="mobile-card-title">${itemName}</div>
+              ${metaHtml}
+            `;
+
+            container.appendChild(card);
+          });
+        }
+
+        function showActiveDayOnMobile() {
+          if (!isMobileView) return;
+          document.querySelectorAll(".day-column").forEach((column) => {
+            column.classList.remove("active");
+            if (parseInt(column.dataset.dayIndex) === activeDayIndex) {
+              column.classList.add("active");
+            }
+          });
+        }
+
+        function convertTo12HourFormat(time24) {
+          if (!time24 || time24 === "??:??") return time24;
+          const [hours, minutes] = time24.split(":");
+          const hour = parseInt(hours, 10);
+          if (isNaN(hour)) return time24;
+          const period = hour >= 12 ? "PM" : "AM";
+          const hour12 = hour % 12 || 12;
+          return `${hour12}:${minutes} ${period}`;
+        }
+
+        function getMondayOfCurrentWeek() {
+          const today = new Date();
+          const day = today.getDay();
+          const diff = today.getDate() - day + (day === 0 ? -6 : 1);
+          const monday = new Date(today);
+          monday.setDate(diff);
+          monday.setHours(0, 0, 0, 0);
+          return monday;
+        }
+
+        function formatDateForInput(date) {
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, "0");
+          const day = String(date.getDate()).padStart(2, "0");
+          return `${year}-${month}-${day}`;
+        }
+
+        function updateSelectedWeekText(mondayDate) {
+          const monday = new Date(mondayDate);
+          const friday = new Date(mondayDate);
+          friday.setDate(monday.getDate() + 4);
+
+          const options = { day: "numeric", month: "long", year: "numeric" };
+          const locale = currentLanguage === "fr" ? "fr-FR" : "en-US";
+          const mondayFormatted = monday.toLocaleDateString(locale, options);
+          const fridayFormatted = friday.toLocaleDateString(locale, options);
+
+          document.getElementById("selectedWeek").textContent =
+            `${translations[currentLanguage].weekOf} ${mondayFormatted} ${translations[currentLanguage].to} ${fridayFormatted}`;
+        }
+      });
+
+      // Register PWA Service Worker
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker
+            .register("/service-worker.js")
+            .then((registration) => {
+              console.log("Service Worker registered successfully:", registration);
+            })
+            .catch((err) => {
+              console.warn("Service Worker registration failed:", err);
+            });
+        });
+      }
+    </script>
+  </body>
+</html>

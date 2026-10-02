@@ -1,69 +1,281 @@
-# EPSI Bot Discord
+# EPSI Bot
 
-Un bot Discord pour accéder facilement à votre emploi du temps EPSI directement depuis Discord.
+[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/) [![Package Manager](https://img.shields.io/badge/uv-astral-DE5FE9?style=flat-square)](https://docs.astral.sh/uv/) [![Docker](https://img.shields.io/badge/Docker-Multi--arch-2496ED?style=flat-square&logo=docker&logoColor=white)](https://github.com/enzomtpYT/EPSI-Bot/pkgs/container/epsi-bot) [![CI](https://img.shields.io/badge/CI-Automated-success?style=flat-square&logo=githubactions&logoColor=white)](https://github.com/enzomtpYT/EPSI-Bot/actions)
 
-[![Inviter le bot](https://img.shields.io/badge/Inviter%20le%20bot-Discord-7289DA?style=for-the-badge&logo=discord&logoColor=white)](https://discord.com/oauth2/authorize?client_id=1357424188306227451)
+EPSI Bot est une application combinant un bot Discord et un portail web moderne (FastAPI / PWA) pour consulter et partager en temps réel les emplois du temps de l'école EPSI via le flux iCal officiel d'Hyperplanning.
+
+---
+
+## Sommaire
+
+- [EPSI Bot](#epsi-bot)
+  - [Sommaire](#sommaire)
+  - [Fonctionnalités](#fonctionnalités)
+  - [Commandes Discord](#commandes-discord)
+    - [`/day` et `/daily`](#day-et-daily)
+    - [`/week` et `/weekly`](#week-et-weekly)
+    - [`/now`](#now)
+    - [`/settings`](#settings)
+    - [`/share`](#share)
+  - [Portail Web \& PWA](#portail-web--pwa)
+  - [Choix techniques et architecture](#choix-techniques-et-architecture)
+  - [Guide d'installation et auto-hébergement](#guide-dinstallation-et-auto-hébergement)
+    - [1. Configuration Discord Developer Portal](#1-configuration-discord-developer-portal)
+    - [2. Variables d'environnement](#2-variables-denvironnement)
+    - [3. Démarrage local avec uv](#3-démarrage-local-avec-uv)
+    - [4. Déploiement Docker \& Docker Compose](#4-déploiement-docker--docker-compose)
+      - [Option A : Image Docker autonome](#option-a--image-docker-autonome)
+      - [Option B : Docker Compose (avec PostgreSQL)](#option-b--docker-compose-avec-postgresql)
+  - [Qualité de code et tests](#qualité-de-code-et-tests)
+
+---
 
 ## Fonctionnalités
 
-- 📅 Afficher votre emploi du temps EPSI pour une journée spécifique
-- 📆 Afficher votre emploi du temps EPSI pour une semaine complète
-- 🔄 Enregistrement de votre nom d'utilisateur EPSI
-- 🖼️ Option pour afficher l'emploi du temps sous forme d'image
-- 📅 Filtrage par date
+- **Synchronisation Hyperplanning automatique** : intégration directe des flux iCal avec cache en mémoire pour un temps de réponse instantané.
+- **Rendu graphique fidèle (Pillow)** : génération d'images de planning quotidiennes et hebdomadaires à échelle proportionnelle calquée sur le portail officiel d'EPSI.
+- **Support des fuseaux horaires (IANA)** : conversion automatique vers n'importe quel fuseau horaire mondial (`America/New_York`, `Asia/Tokyo`, etc.) avec adaptation dynamique des bornes horaires de la grille.
+- **Partage sécurisé** : partage d'emploi du temps par lien web tokenisé ou par liste blanche d'utilisateurs Discord. Masquage strict des liens Microsoft Teams pour les tiers.
+- **Jours fériés et alternance** : injection automatique des jours fériés légaux français et génération des journées en entreprise sur les jours ouvrés sans cours.
+- **Portail Web & PWA** : consultation hors Discord avec thèmes clair/sombre, mode hors-ligne et authentification Discord OAuth2.
+- **Rappels programmés** : notifications quotidiennes et hebdomadaires facultatives en message privé à 06h00.
 
-## Commandes
+---
 
-### `/day` - Afficher l'emploi du temps d'une journée
-Affiche votre emploi du temps EPSI pour une journée spécifique.
+## Commandes Discord
 
-**Options :**
-- `username` : Votre nom d'utilisateur EPSI (optionnel si vous êtes enregistré)
-- `date` : Date au format JJ/MM/AAAA (optionnel, utilise la date du jour par défaut)
-- `image` : Si activé, envoie l'emploi du temps sous forme d'image
+Le bot supporte l'installation sur serveur ainsi que l'installation utilisateur (*User App*, accessible partout sur Discord sans inviter le bot sur un serveur).
 
-### `/week` - Afficher l'emploi du temps d'une semaine
-Affiche votre emploi du temps EPSI pour une semaine complète.
+### `/day` et `/daily`
 
-**Options :**
-- `username` : Votre nom d'utilisateur EPSI (optionnel si vous êtes enregistré)
-- `date` : Date au format JJ/MM/AAAA (optionnel, utilise la date du jour pour trouver la semaine actuelle)
-- `image` : Si activé, envoie l'emploi du temps sous forme d'image
+Affiche l'emploi du temps détaillé pour une journée spécifique (par défaut : aujourd'hui).
 
-### `/settings` - Gérer vos paramètres et enregistrement
-Permet d'enregistrer ou de supprimer votre nom d'utilisateur EPSI et de gérer les préférences de notifications.
+| Paramètre | Type | Valeur par défaut | Description |
+| :--- | :--- | :--- | :--- |
+| `date` | Texte | Date du jour | Date cible au format `JJ/MM/AAAA` (ex: `15/10/2026`). |
+| `image` | Booléen | Choix du profil | `True` pour forcer le rendu image, `False` pour l'embed texte. |
+| `url` | Texte | URL du profil | URL iCal directe temporaire (sans enregistrement préalable). |
+| `user` | Utilisateur | Vous-même | Utilisateur Discord dont vous souhaitez consulter le planning (nécessite une autorisation via `/share`). |
 
-Sous-commandes / options disponibles :
-- `register` : Enregistrer ou mettre à jour votre nom d'utilisateur EPSI (ex : `/settings register username:mon_identifiant`).
-- `unregister` : Supprimer votre enregistrement (ex : `/settings unregister`).
-- `daily` : Activer/Désactiver les notifications quotidiennes (choix : Activer / Désactiver).
-- `weekly` : Activer/Désactiver les notifications hebdomadaires (choix : Activer / Désactiver).
+**Sortie et interactions :**
+- **Mode Image** : carte sombre Pillow affichant chaque cours avec badge horaire, matière, salle, intervenant et badge Teams visuel.
+- **Mode Embed** : liste chronologique détaillée Discord avec timestamps dynamiques `<t:timestamp:t>`.
+- **Boutons interactifs** : *Jour précédent*, *Jour suivant*, *Image / Embed* et bouton d'action *Rejoindre Teams* (affiché uniquement si le demandeur est propriétaire du planning).
 
-Exemples :
-- Enregistrer un nom d'utilisateur : `/settings register mon_identifiant`
-- Désenregistrer : `/settings unregister`
-- Activer les notifications quotidiennes : `/settings daily Activer`
+### `/week` et `/weekly`
 
-## Installation
+Affiche la grille complète du lundi au vendredi de la semaine demandée.
 
-1. Cliquez sur le bouton "Inviter le bot" ci-dessus
-2. Sélectionnez le serveur où vous souhaitez ajouter le bot
-3. Autorisez les permissions nécessaires
-4. Le bot est maintenant prêt à être utilisé !
+| Paramètre | Type | Valeur par défaut | Description |
+| :--- | :--- | :--- | :--- |
+| `date` | Texte | Semaine courante | N'importe quelle date comprise dans la semaine (`JJ/MM/AAAA`). |
+| `image` | Booléen | Choix du profil | Rendu grille image proportionnelle (`True`) ou texte (`False`). |
+| `url` | Texte | URL du profil | URL iCal ponctuelle. |
+| `user` | Utilisateur | Vous-même | Ami Discord vous ayant accordé l'accès à son planning. |
 
-## Configuration
+**Sortie et interactions :**
+- **Mode Image** : grille 5 colonnes (lundi au vendredi) avec découpage horaire proportionnel à la durée des blocs, colorimétrie dynamique par matière et adaptation aux décalages de fuseaux horaires.
+- **Boutons interactifs** : *Semaine précédente*, *Semaine suivante*, bascule d'affichage et accès direct Teams.
 
-Pour utiliser le bot, vous pouvez enregistrer votre nom d'utilisateur EPSI avec la sous-commande `/settings register` (ou fournir `username` chaque fois que vous faites la commande `/day` ou `/week`). Une fois enregistré, vous pourrez utiliser les commandes `/day` et `/week` sans avoir à spécifier votre nom d'utilisateur à chaque fois.
+### `/now`
 
-## Support
+Indique le statut en temps réel :
+- Cours ou activité en cours d'exécution (avec salle, professeur et lien Teams direct).
+- Liste des 4 prochains cours prévus dans les jours à venir.
 
-Si vous rencontrez des problèmes ou si vous avez des questions, n'hésitez pas à contacter le développeur du bot.
+### `/settings`
 
-## Développement
+Gère la configuration de votre profil et vos préférences de notification.
 
-Ce bot est développé avec :
-- Python 3.x
-- discord.py
-- Autres dépendances listées dans `requirements.txt`
+- `/settings register <ical_url>` : enregistre votre lien Hyperplanning personnel.
+- `/settings timezone <timezone>` : définit votre fuseau horaire IANA (ex: `Europe/Paris`, `America/New_York`).
+- `/settings daily [enabled]` : active ou désactive le rappel quotidien à 06h00.
+- `/settings weekly [enabled]` : active ou désactive le récapitulatif du lundi matin à 06h00.
+- `/settings work_days [enabled]` : active ou désactive l'affichage des blocs "Entreprise" les jours sans cours.
+- `/settings default_format [format]` : définit votre format d'affichage par défaut (`Image` ou `Embed`).
+- `/settings language [lang]` : bascule la langue du bot (`Français` ou `English`).
+- `/settings unregister` : supprime l'intégralité de vos données de la base de données.
 
-Pour contribuer au développement, n'hésitez pas à ouvrir une issue ou à proposer une pull request.
+### `/share`
+
+Contrôle le partage de votre emploi du temps avec d'autres étudiants.
+
+- `/share allow <user>` : accorde à un membre Discord l'autorisation de consulter votre planning avec `/day user:@ami` et `/week user:@ami`.
+- `/share revoke <user>` : révoque immédiatement l'accès d'un utilisateur.
+- `/share list` : affiche la liste complète des personnes actuellement autorisées.
+- `/share link` : génère ou régénère votre lien secret pour le partage web (`https://domaine/share/<token>`).
+
+---
+
+## Portail Web & PWA
+
+L'application intègre un serveur web FastAPI accessible sur le port 8080.
+
+- **Interface Responsive** : optimisée pour mobiles, tablettes et ordinateurs de bureau.
+- **Installation PWA** : peut être installée comme une application autonome sur Android et iOS.
+- **Connexion Discord OAuth2** : permet de se connecter avec son compte Discord pour synchroniser automatiquement son URL iCal et ses préférences avec le bot Discord.
+- **Navigation partagée** : menu déroulant permettant de basculer en un clic entre son planning personnel et les plannings des étudiants qui vous ont autorisé.
+- **Mode Invité** : permet à toute personne sans compte Discord de coller une URL iCal, celle-ci étant conservée localement dans le navigateur (`localStorage`).
+
+---
+
+## Choix techniques et architecture
+
+1. **Boucle asynchrone unifiée (FastAPI + discord.py)**
+   Le serveur web Uvicorn et le bot Discord s'exécutent simultanément sur la même boucle d'événements `asyncio` (`asyncio.gather` dans `main.py`). Cela élimine le besoin d'un broker de messages (Redis/RabbitMQ) ou de processus séparés tout en partageant les mêmes pools de connexions et caches mémoire.
+
+2. **Génération d'images en pur Python (Pillow)**
+   Le rendu graphique s'appuie sur la bibliothèque standard `Pillow` et la police `Roboto` embarquée, sans dépendance vers des bibliothèques C système comme Cairo, Pango ou Weasyprint. Le déploiement est ainsi immédiat, sans compilation native lourde.
+
+3. **Isolation stricte des bornes horaires**
+   Le calcul de l'amplitude horaire (`start_hour` / `end_hour`) de la grille hebdomadaire s'isole exclusivement sur les cours tombant du lundi au vendredi. Les événements journée entière (jours fériés de week-end, vacances) ne peuvent pas dilater artificiellement la grille vers 00h00 ou 23h00.
+
+4. **Sécurité et durcissement anti-SSRF**
+   - **Protection contre le DNS Rebinding (TOCTOU)** : toutes les requêtes de récupération d'iCal passent par un résolveur personnalisé (`SafeResolver`) qui inspecte l'adresse IP résolue immédiatement avant la connexion et bloque les adresses locales, privées (RFC 1918), link-local et multicast.
+   - **Protection anti-déni de service (DoS / OOM)** : cache en mémoire borné (`cachetools.TTLCache`, 64 entrées max) et téléchargement des flux iCal bridé à 5 Mo maximum.
+   - **Assainissement XSS** : aucune insertion de contenu externe via `innerHTML` dans le frontend ; manipulation stricte par `textContent` ou échappement HTML.
+
+5. **Persistance flexible (SQLModel / SQLAlchemy)**
+   Support natif de PostgreSQL via le driver asynchrone `asyncpg` pour la production, avec repli automatique sur SQLite local (`aiosqlite`) lorsqu'aucune base PostgreSQL n'est spécifiée.
+
+---
+
+## Guide d'installation et auto-hébergement
+
+### 1. Configuration Discord Developer Portal
+
+1. Rendez-vous sur le [Discord Developer Portal](https://discord.com/developers/applications) et cliquez sur **New Application**.
+2. Dans l'onglet **Bot** :
+   - Cliquez sur **Add Bot** ou **Reset Token** pour copier votre `DISCORD_TOKEN`.
+   - Activez l'option **Direct Messages** si nécessaire. Aucun *Privileged Intent* (comme Message Content ou Server Members) n'est requis.
+3. Dans l'onglet **OAuth2** :
+   - Copiez le `Client ID` (`DISCORD_CLIENT_ID`) et générez un `Client Secret` (`DISCORD_CLIENT_SECRET`).
+   - Ajoutez l'URL de redirection sous **Redirects** : `http://localhost:8080/auth/callback` (ou `https://votre-domaine.com/auth/callback` en production).
+
+### 2. Variables d'environnement
+
+Créez un fichier `.env` à la racine du projet en vous basant sur les paramètres suivants :
+
+| Variable | Obligatoire | Valeur par défaut | Description |
+| :--- | :--- | :--- | :--- |
+| `DISCORD_TOKEN` | Oui (pour le bot) | `""` | Jeton d'authentification du bot Discord. |
+| `DISCORD_CLIENT_ID` | Recommandé | `""` | Identifiant client de l'application OAuth2. |
+| `DISCORD_CLIENT_SECRET` | Recommandé | `""` | Secret client OAuth2 pour la connexion web. |
+| `DISCORD_REDIRECT_URI` | Recommandé | `http://localhost:8080/auth/callback` | URL de retour après connexion Discord. |
+| `WEB_HOST` | Non | `0.0.0.0` | Adresse d'écoute du serveur web FastAPI. |
+| `WEB_PORT` | Non | `8080` | Port d'écoute du serveur web. |
+| `WEB_BASE_URL` | Non | `http://localhost:8080` | URL publique du site web. |
+| `SESSION_SECRET` | Non | Clé aléatoire | Clé secrète de chiffrement des sessions utilisateur. |
+| `POSTGRES_HOST` | Non | `""` | Hôte PostgreSQL (si omis, bascule sur SQLite). |
+| `POSTGRES_PORT` | Non | `5432` | Port de la base de données PostgreSQL. |
+| `POSTGRES_DB` | Non | `""` | Nom de la base PostgreSQL. |
+| `POSTGRES_USER` | Non | `""` | Utilisateur PostgreSQL. |
+| `POSTGRES_PASSWORD` | Non | `""` | Mot de passe PostgreSQL. |
+| `SQLITE_PATH` | Non | `bot_data.sqlite3` | Chemin du fichier de base de données SQLite local. |
+| `BOT_TIMEZONE` | Non | `Europe/Paris` | Fuseau horaire par défaut du système. |
+
+*Note : si `DISCORD_TOKEN` est omis, l'application démarre automatiquement en mode WebUI autonome.*
+
+### 3. Démarrage local avec uv
+
+Le gestionnaire de paquets [uv](https://docs.astral.sh/uv/) est recommandé pour sa rapidité d'exécution.
+
+```bash
+# 1. Cloner le dépôt
+git clone https://github.com/enzomtpYT/EPSI-Bot.git
+cd epsi-bot
+
+# 2. Installer les dépendances
+uv sync
+
+# 3. Lancer l'application (Bot + WebUI)
+uv run python src/main.py
+```
+
+L'interface web est alors accessible sur `http://localhost:8080`.
+
+### 4. Déploiement Docker & Docker Compose
+
+#### Option A : Image Docker autonome
+
+```bash
+# Construction de l'image
+docker build -t epsi-bot .
+
+# Lancement du conteneur avec votre fichier d'environnement
+docker run -d \
+  --name epsi-bot \
+  -p 8080:8080 \
+  --env-file .env \
+  --restart unless-stopped \
+  epsi-bot
+```
+
+#### Option B : Docker Compose (avec PostgreSQL)
+
+Vous pouvez déployer l'ensemble avec un fichier `docker-compose.yml` :
+
+```yaml
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: epsibot
+      POSTGRES_USER: epsibot
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me_in_production}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: epsibot
+      POSTGRES_USER: epsibot
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me_in_production}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U epsibot -d epsibot"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+```
+
+Lancement en arrière-plan :
+
+```bash
+docker compose up -d
+```
+
+---
+
+## Qualité de code et tests
+
+Le projet applique les standards stricts définis dans [AGENTS.md](AGENTS.md) :
+
+```bash
+# Exécution de la suite de tests unitaires (pytest)
+uv run pytest
+
+# Analyse statique et formatage (Ruff)
+uv run ruff check . --fix
+uv run ruff format .
+
+# Vérification du typage statique (ty / pyright)
+uv run ty check
+
+# Audit de sécurité des dépendances (CVE)
+uvx pip-audit
+```
