@@ -53,6 +53,7 @@ class Settings(BaseModel):
     def sqlite_database_url(self) -> str:
         """Return fallback SQLite connection string."""
         db_file = Path(self.sqlite_path).resolve()
+        db_file.parent.mkdir(parents=True, exist_ok=True)
         return f"sqlite+aiosqlite:///{db_file}"
 
     @property
