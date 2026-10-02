@@ -1,9 +1,6 @@
 # EPSI Bot
 
-[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
-[![Package Manager](https://img.shields.io/badge/uv-astral-DE5FE9?style=flat-square)](https://docs.astral.sh/uv/)
-[![Docker](https://img.shields.io/badge/Docker-Multi--arch-2496ED?style=flat-square&logo=docker&logoColor=white)](https://github.com/enzomtpYT/EPSI-Bot/pkgs/container/epsi-bot)
-[![CI](https://img.shields.io/badge/CI-Automated-success?style=flat-square&logo=githubactions&logoColor=white)](https://github.com/enzomtpYT/EPSI-Bot/actions)
+[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/) [![Package Manager](https://img.shields.io/badge/uv-astral-DE5FE9?style=flat-square)](https://docs.astral.sh/uv/) [![Docker](https://img.shields.io/badge/Docker-Multi--arch-2496ED?style=flat-square&logo=docker&logoColor=white)](https://github.com/enzomtpYT/EPSI-Bot/pkgs/container/epsi-bot) [![CI](https://img.shields.io/badge/CI-Automated-success?style=flat-square&logo=githubactions&logoColor=white)](https://github.com/enzomtpYT/EPSI-Bot/actions)
 
 EPSI Bot est une application combinant un bot Discord et un portail web moderne (FastAPI / PWA) pour consulter et partager en temps réel les emplois du temps de l'école EPSI via le flux iCal officiel d'Hyperplanning.
 
@@ -11,21 +8,25 @@ EPSI Bot est une application combinant un bot Discord et un portail web moderne 
 
 ## Sommaire
 
-- [Fonctionnalités](#fonctionnalités)
-- [Commandes Discord](#commandes-discord)
-  - [/day et /daily](#day-et-daily)
-  - [/week et /weekly](#week-et-weekly)
-  - [/now](#now)
-  - [/settings](#settings)
-  - [/share](#share)
-- [Portail Web & PWA](#portail-web--pwa)
-- [Choix techniques et architecture](#choix-techniques-et-architecture)
-- [Guide d'installation et auto-hébergement](#guide-dinstallation-et-auto-hébergement)
-  - [1. Configuration Discord Developer Portal](#1-configuration-discord-developer-portal)
-  - [2. Variables d'environnement](#2-variables-denvironnement)
-  - [3. Démarrage local avec uv](#3-démarrage-local-avec-uv)
-  - [4. Déploiement Docker & Docker Compose](#4-déploiement-docker--docker-compose)
-- [Qualité de code et tests](#qualité-de-code-et-tests)
+- [EPSI Bot](#epsi-bot)
+  - [Sommaire](#sommaire)
+  - [Fonctionnalités](#fonctionnalités)
+  - [Commandes Discord](#commandes-discord)
+    - [`/day` et `/daily`](#day-et-daily)
+    - [`/week` et `/weekly`](#week-et-weekly)
+    - [`/now`](#now)
+    - [`/settings`](#settings)
+    - [`/share`](#share)
+  - [Portail Web \& PWA](#portail-web--pwa)
+  - [Choix techniques et architecture](#choix-techniques-et-architecture)
+  - [Guide d'installation et auto-hébergement](#guide-dinstallation-et-auto-hébergement)
+    - [1. Configuration Discord Developer Portal](#1-configuration-discord-developer-portal)
+    - [2. Variables d'environnement](#2-variables-denvironnement)
+    - [3. Démarrage local avec uv](#3-démarrage-local-avec-uv)
+    - [4. Déploiement Docker \& Docker Compose](#4-déploiement-docker--docker-compose)
+      - [Option A : Image Docker autonome](#option-a--image-docker-autonome)
+      - [Option B : Docker Compose (avec PostgreSQL)](#option-b--docker-compose-avec-postgresql)
+  - [Qualité de code et tests](#qualité-de-code-et-tests)
 
 ---
 
