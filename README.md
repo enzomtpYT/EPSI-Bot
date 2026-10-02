@@ -196,67 +196,51 @@ L'interface web est alors accessible sur `http://localhost:8080`.
 
 ### 4. Déploiement Docker & Docker Compose
 
-#### Option A : Image Docker autonome
+Le projet inclut un fichier `docker-compose.yml` prêt à l'emploi avec le bot et une base de données PostgreSQL 16 configurée.
+
+#### Démarrage rapide avec Docker Compose (Recommandé)
+
+```bash
+# 1. Cloner le projet
+git clone https://github.com/enzomtpYT/EPSI-Bot.git
+cd epsi-bot
+
+# 2. Copier et renseigner votre fichier d'environnement
+cp .env.example .env
+nano .env  # Renseignez au minimum votre DISCORD_TOKEN
+
+# 3. Lancer les conteneurs en arrière-plan
+docker compose up -d
+```
+
+L'application attend automatiquement que PostgreSQL soit prêt (`service_healthy`) avant de démarrer. L'interface web est immédiatement disponible sur `http://localhost:8080`.
+
+Pour consulter les journaux en direct :
+```bash
+docker compose logs -f
+```
+
+Pour arrêter les services :
+```bash
+docker compose down
+```
+
+#### Option alternative : Image Docker autonome
+
+Si vous utilisez déjà votre propre serveur de base de données ou préférez le mode SQLite local :
 
 ```bash
 # Construction de l'image
 docker build -t epsi-bot .
 
-# Lancement du conteneur avec votre fichier d'environnement
+# Lancement du conteneur
 docker run -d \
   --name epsi-bot \
   -p 8080:8080 \
+  -v bot_data:/app/data \
   --env-file .env \
   --restart unless-stopped \
   epsi-bot
-```
-
-#### Option B : Docker Compose (avec PostgreSQL)
-
-Vous pouvez déployer l'ensemble avec un fichier `docker-compose.yml` :
-
-```yaml
-services:
-  app:
-    build: .
-    restart: unless-stopped
-    ports:
-      - "8080:8080"
-    env_file:
-      - .env
-    environment:
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
-      POSTGRES_DB: epsibot
-      POSTGRES_USER: epsibot
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me_in_production}
-    depends_on:
-      postgres:
-        condition: service_healthy
-
-  postgres:
-    image: postgres:16-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: epsibot
-      POSTGRES_USER: epsibot
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me_in_production}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U epsibot -d epsibot"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-volumes:
-  postgres_data:
-```
-
-Lancement en arrière-plan :
-
-```bash
-docker compose up -d
 ```
 
 ---

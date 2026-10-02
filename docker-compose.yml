@@ -1,0 +1,36 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: epsi-bot
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-8080}:8080"
+    env_file:
+      - .env
+    volumes:
+      - bot_data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: epsi-bot-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-epsibot}
+      POSTGRES_USER: ${POSTGRES_USER:-epsibot_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secret_password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-epsibot_user} -d ${POSTGRES_DB:-epsibot}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  bot_data:
