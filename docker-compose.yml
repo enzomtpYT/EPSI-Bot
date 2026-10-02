@@ -1,8 +1,10 @@
 services:
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ghcr.io/enzomtpyt/epsi-bot:latest
+    # Décommentez ci-dessous si vous souhaitez compiler l'image depuis les sources locales :
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
     container_name: epsi-bot
     restart: unless-stopped
     ports:

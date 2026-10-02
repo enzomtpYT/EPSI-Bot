@@ -196,7 +196,7 @@ L'interface web est alors accessible sur `http://localhost:8080`.
 
 ### 4. Déploiement Docker & Docker Compose
 
-Le projet inclut un fichier `docker-compose.yml` prêt à l'emploi avec le bot et une base de données PostgreSQL 16 configurée.
+Le projet inclut un fichier `docker-compose.yml` prêt à l'emploi utilisant directement l'image multi-architecture pré-compilée sur GitHub Container Registry (`ghcr.io/enzomtpyt/epsi-bot:latest`) ainsi qu'une base de données PostgreSQL 16 configurée. Aucun besoin de compiler le projet sur votre serveur.
 
 #### Démarrage rapide avec Docker Compose (Recommandé)
 
@@ -209,11 +209,13 @@ cd epsi-bot
 cp .env.example .env
 nano .env  # Renseignez au minimum votre DISCORD_TOKEN
 
-# 3. Lancer les conteneurs en arrière-plan
+# 3. Lancer les conteneurs en arrière-plan (télécharge l'image GHCR automatiquement)
 docker compose up -d
 ```
 
 L'application attend automatiquement que PostgreSQL soit prêt (`service_healthy`) avant de démarrer. L'interface web est immédiatement disponible sur `http://localhost:8080`.
+
+*(Optionnel) Si vous préférez compiler l'image depuis vos fichiers locaux plutôt que d'utiliser l'image GHCR, décommentez le bloc `build: .` dans `docker-compose.yml` ou lancez `docker compose up -d --build`.*
 
 Pour consulter les journaux en direct :
 ```bash
