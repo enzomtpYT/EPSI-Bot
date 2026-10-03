@@ -27,6 +27,9 @@ async def test_index_page():
         assert response.status_code == 200
         assert "EPSI Emploi du temps" in response.text
         assert "discordLoginBtn" in response.text
+        assert "botInviteNavBtn" in response.text
+        assert "botWelcomeInviteBtn" in response.text
+        assert "discord.com/oauth2/authorize" in response.text
 
 
 @pytest.mark.asyncio
@@ -59,6 +62,21 @@ async def test_api_me_unauthenticated():
         assert response.status_code == 200
         data = response.json()
         assert data["logged_in"] is False
+        assert "bot_client_id" in data
+        assert "bot_invite_url" in data
+        assert "permissions=2048" in data["bot_invite_url"]
+
+
+@pytest.mark.asyncio
+async def test_bot_client_id_detection():
+    app = create_web_app()
+    with patch("config.settings.discord_client_id", "999888777666555"):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.get("/api/me")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["bot_client_id"] == "999888777666555"
+            assert "client_id=999888777666555" in data["bot_invite_url"]
 
 
 @pytest.mark.asyncio
@@ -173,6 +191,8 @@ async def test_auth_callback_and_settings_flow():
 
             login_query = parse_qs(urlsplit(resp_login.headers["location"]).query)
             oauth_state = login_query["state"][0]
+            assert "applications.commands" in login_query["scope"][0]
+            assert login_query["integration_type"][0] == "1"
 
             # 2. Trigger callback with state
             resp_cb = await client.get(f"/auth/callback?code=mock_code&state={oauth_state}")

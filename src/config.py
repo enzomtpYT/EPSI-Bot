@@ -47,7 +47,23 @@ class Settings(BaseModel):
     discord_redirect_uri: str = os.getenv(
         "DISCORD_REDIRECT_URI", "http://localhost:8080/auth/callback"
     )
+    discord_oauth_scopes: str = os.getenv("DISCORD_OAUTH_SCOPES", "identify applications.commands")
+    discord_oauth_integration_type: str = os.getenv("DISCORD_OAUTH_INTEGRATION_TYPE", "1")
     session_secret: str = _effective_session_secret
+
+    @property
+    def effective_discord_client_id(self) -> str:
+        """Return the configured Discord client ID or default fallback."""
+        default_id = "1357424188306227451"
+        return self.discord_client_id.strip() if self.discord_client_id else default_id
+
+    @property
+    def bot_invite_url(self) -> str:
+        """Return OAuth2 authorize link with permissions to add the bot to Discord."""
+        return (
+            f"https://discord.com/oauth2/authorize?client_id={self.effective_discord_client_id}"
+            f"&permissions=2048&scope=bot%20applications.commands"
+        )
 
     @property
     def sqlite_database_url(self) -> str:

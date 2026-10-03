@@ -20,6 +20,10 @@
       <header class="header">
         <h1>EPSI Emploi du temps</h1>
         <div class="fixed-toggles">
+          <!-- Discord Bot Invite Button (accessible outside settings for all users) -->
+          <a id="botInviteNavBtn" href="{{ bot_invite_url }}" target="_blank" rel="noopener noreferrer" class="bot-invite-nav-btn" title="Ajouter le bot Discord">
+            <i class="bi bi-robot"></i> <span class="btn-text" id="botInviteNavText">Ajouter le bot</span>
+          </a>
           <!-- Discord Authentication / Profile Badge -->
           <div id="discordAuthContainer">
             <a id="discordLoginBtn" href="/auth/login" class="discord-btn" title="Connexion Discord">
@@ -49,7 +53,16 @@
           <input type="url" class="input-field" id="newUserId" placeholder="https://.../ical.ics" />
           <button class="btn btn-primary" type="button" id="saveUserId">Enregistrer</button>
         </div>
+        <div class="bot-invite-card-hint" style="margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+          <span style="font-size: 0.85rem; color: var(--text-secondary);" id="botWelcomeHint">
+            <i class="bi bi-discord"></i> Vous utilisez Discord ? Ajoutez le bot pour recevoir vos rappels de cours !
+          </span>
+          <a id="botWelcomeInviteBtn" href="{{ bot_invite_url }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="font-size: 0.85rem; padding: 5px 10px;">
+            <i class="bi bi-robot"></i> <span id="botWelcomeInviteText">Ajouter le bot</span>
+          </a>
+        </div>
       </div>
+
 
       <!-- Week selector with navigation buttons -->
       <div class="controls-toolbar">
@@ -346,6 +359,10 @@
             localTime: "Heure locale",
             schoolTime: "Heure école (Paris)",
             autoTz: "Automatique (Navigateur)",
+            botInviteNavText: "Ajouter le bot",
+            botInviteNavTitle: "Ajouter le bot Discord",
+            botWelcomeHint: "Vous utilisez Discord ? Ajoutez le bot pour recevoir vos rappels de cours !",
+            botWelcomeInviteText: "Ajouter le bot",
           },
           en: {
             title: "EPSI Schedule",
@@ -388,6 +405,10 @@
             localTime: "Local time",
             schoolTime: "School time (Paris)",
             autoTz: "Automatic (Browser)",
+            botInviteNavText: "Add Bot",
+            botInviteNavTitle: "Add Discord Bot",
+            botWelcomeHint: "Using Discord? Add the bot to receive your course reminders!",
+            botWelcomeInviteText: "Add Bot",
           },
         };
 
@@ -649,6 +670,15 @@
           }
           document.getElementById("logoutBtn").innerHTML = `<i class="bi bi-box-arrow-right"></i> ${translations[currentLanguage].logout}`;
 
+          const botInviteNavText = document.getElementById("botInviteNavText");
+          if (botInviteNavText) botInviteNavText.textContent = translations[currentLanguage].botInviteNavText;
+          const botInviteNavBtn = document.getElementById("botInviteNavBtn");
+          if (botInviteNavBtn) botInviteNavBtn.title = translations[currentLanguage].botInviteNavTitle;
+          const botWelcomeHint = document.getElementById("botWelcomeHint");
+          if (botWelcomeHint) botWelcomeHint.innerHTML = `<i class="bi bi-discord"></i> ${translations[currentLanguage].botWelcomeHint}`;
+          const botWelcomeInviteText = document.getElementById("botWelcomeInviteText");
+          if (botWelcomeInviteText) botWelcomeInviteText.textContent = translations[currentLanguage].botWelcomeInviteText;
+
           if (initialMessage) {
             initialMessage.textContent = translations[currentLanguage].loading;
           }
@@ -660,6 +690,12 @@
           try {
             const resp = await fetch("/api/me");
             const data = await resp.json();
+            if (data.bot_invite_url) {
+              const botNavBtn = document.getElementById("botInviteNavBtn");
+              if (botNavBtn) botNavBtn.href = data.bot_invite_url;
+              const botWelcomeBtn = document.getElementById("botWelcomeInviteBtn");
+              if (botWelcomeBtn) botWelcomeBtn.href = data.bot_invite_url;
+            }
             if (data.logged_in && data.user) {
               currentUser = data;
               discordLoginBtn.style.display = "none";
