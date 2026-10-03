@@ -114,6 +114,8 @@ def create_web_app() -> FastAPI:
                     settings.discord_client_id and settings.discord_client_secret
                 ),
                 "share_token": None,
+                "bot_client_id": settings.effective_discord_client_id,
+                "bot_invite_url": settings.bot_invite_url,
             },
         )
 
@@ -128,6 +130,8 @@ def create_web_app() -> FastAPI:
                     settings.discord_client_id and settings.discord_client_secret
                 ),
                 "share_token": token,
+                "bot_client_id": settings.effective_discord_client_id,
+                "bot_invite_url": settings.bot_invite_url,
             },
         )
 

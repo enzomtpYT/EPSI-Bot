@@ -130,19 +130,24 @@ async def logout(request: Request) -> RedirectResponse:
 
 @auth_router.get("/api/me")
 async def get_current_user_info(request: Request) -> dict:
-    """Return current logged-in user profile and settings."""
+    """Return current logged-in user profile, settings, and bot invite details."""
     user = request.session.get("user")
     oauth_configured = bool(settings.discord_client_id and settings.discord_client_secret)
+    base_info = {
+        "oauth_configured": oauth_configured,
+        "bot_client_id": settings.effective_discord_client_id,
+        "bot_invite_url": settings.bot_invite_url,
+    }
 
     if not user:
-        return {"logged_in": False, "oauth_configured": oauth_configured}
+        return {"logged_in": False, **base_info}
 
     discord_id = user["discord_id"]
     profile = await get_user_profile(discord_id)
 
     return {
         "logged_in": True,
-        "oauth_configured": oauth_configured,
+        **base_info,
         "user": user,
         "settings": {
             "ical_url": profile.ical_url if profile else None,

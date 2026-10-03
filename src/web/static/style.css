@@ -930,16 +930,44 @@ body {
   
   .header {
     margin-bottom: 6px;
-    padding-right: 70px;
+    padding-right: 150px;
   }
 
   .header h1 {
     font-size: 1.25rem;
     text-align: left;
   }
+
+  .bot-invite-nav-btn {
+    padding: 6px 8px;
+  }
 }
 
 /* Discord Auth & Settings Components */
+.bot-invite-nav-btn {
+  background-color: var(--surface-color);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary) !important;
+  border-radius: var(--radius-md);
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.bot-invite-nav-btn:hover {
+  background-color: var(--bg-color);
+  border-color: #5865F2;
+  color: #5865F2 !important;
+  transform: translateY(-1px);
+}
+
 .discord-btn {
   background-color: #5865F2;
   color: #ffffff !important;
@@ -960,6 +988,7 @@ body {
   background-color: #4752c4;
   transform: translateY(-1px);
 }
+
 
 .user-profile-btn {
   background-color: var(--surface-color);
