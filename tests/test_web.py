@@ -30,6 +30,15 @@ async def test_index_page():
 
 
 @pytest.mark.asyncio
+async def test_health_check():
+    app = create_web_app()
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/health")
+        assert response.status_code == 200
+        assert response.json() == {"status": "ok"}
+
+
+@pytest.mark.asyncio
 async def test_static_and_pwa_routes():
     app = create_web_app()
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:

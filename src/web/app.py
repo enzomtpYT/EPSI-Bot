@@ -98,6 +98,11 @@ def create_web_app() -> FastAPI:
             headers={"Service-Worker-Allowed": "/"},
         )
 
+    # Healthcheck route for Docker / container orchestration
+    @app.get("/health")
+    async def health_check() -> dict[str, str]:
+        return {"status": "ok"}
+
     # Main WebUI route
     @app.get("/", response_class=HTMLResponse)
     async def index(request: Request) -> HTMLResponse:
