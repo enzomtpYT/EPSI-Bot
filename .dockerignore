@@ -18,3 +18,4 @@ tests
 htmlcov
 .DS_Store
 Thumbs.db
+.python-version

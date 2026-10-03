@@ -1,5 +1,5 @@
 # Multi-stage Dockerfile powered by uv
-FROM python:3.11-slim-bookworm AS builder
+FROM python:3.12-slim-bookworm AS builder
 
 # Copy uv binary from official Astral distroless image
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
@@ -8,6 +8,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
 ENV UV_PYTHON_DOWNLOADS=0
+ENV UV_PYTHON=/usr/local/bin/python
 
 WORKDIR /app
 
@@ -20,7 +21,7 @@ COPY . .
 RUN uv sync --frozen --no-dev
 
 # Final runtime image
-FROM python:3.11-slim-bookworm
+FROM python:3.12-slim-bookworm
 
 WORKDIR /app
 
