@@ -47,6 +47,8 @@ class Settings(BaseModel):
     discord_redirect_uri: str = os.getenv(
         "DISCORD_REDIRECT_URI", "http://localhost:8080/auth/callback"
     )
+    discord_oauth_scopes: str = os.getenv("DISCORD_OAUTH_SCOPES", "identify applications.commands")
+    discord_oauth_integration_type: str = os.getenv("DISCORD_OAUTH_INTEGRATION_TYPE", "1")
     session_secret: str = _effective_session_secret
 
     @property

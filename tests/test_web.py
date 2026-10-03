@@ -191,6 +191,8 @@ async def test_auth_callback_and_settings_flow():
 
             login_query = parse_qs(urlsplit(resp_login.headers["location"]).query)
             oauth_state = login_query["state"][0]
+            assert "applications.commands" in login_query["scope"][0]
+            assert login_query["integration_type"][0] == "1"
 
             # 2. Trigger callback with state
             resp_cb = await client.get(f"/auth/callback?code=mock_code&state={oauth_state}")

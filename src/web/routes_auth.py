@@ -32,12 +32,19 @@ async def login(request: Request) -> RedirectResponse:
     request.session["oauth_state"] = state
 
     redirect_uri = quote_plus(settings.discord_redirect_uri)
+    scopes = quote_plus(settings.discord_oauth_scopes)
+    integration_type_param = (
+        f"&integration_type={quote_plus(settings.discord_oauth_integration_type)}"
+        if settings.discord_oauth_integration_type
+        else ""
+    )
     auth_url = (
         f"{DISCORD_API_BASE}/oauth2/authorize"
         f"?client_id={settings.discord_client_id}"
         f"&redirect_uri={redirect_uri}"
         f"&response_type=code"
-        f"&scope=identify"
+        f"&scope={scopes}"
+        f"{integration_type_param}"
         f"&state={state}"
     )
     return RedirectResponse(url=auth_url)
